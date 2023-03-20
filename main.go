@@ -1,7 +1,7 @@
 package basiclog
 
-func WriteToStdout(tolog bool, values ...any) {
-	if tolog {
+func WriteToStdout(toLog bool, values ...any) {
+	if toLog {
 		logMessage := assembleToString(values)
 		ld := data{"", logMessage}
 		bLog.StdoutChan() <- ld
