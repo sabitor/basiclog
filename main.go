@@ -1,9 +1,9 @@
 package basiclog
 
-func WriteToStdout(tolog bool, prefix string, values ...any) {
+func WriteToStdout(tolog bool, values ...any) {
 	if tolog {
 		logMessage := assembleToString(values)
-		ld := data{prefix, logMessage}
+		ld := data{"", logMessage}
 		bLog.StdoutChan() <- ld
 	}
 }
@@ -37,7 +37,6 @@ func StartService(logName string) {
 					bLog.FileLogger().SetPrefix(logToFile.prefix)
 					bLog.FileLogger().Print(logToFile.msg)
 				case logToMulti := <-bLog.MultiChan():
-					bLog.StdoutLogger().SetPrefix(logToMulti.prefix)
 					bLog.StdoutLogger().Print(logToMulti.msg)
 					bLog.FileLogger().SetPrefix(logToMulti.prefix)
 					bLog.FileLogger().Print(logToMulti.msg)
