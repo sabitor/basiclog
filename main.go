@@ -1,4 +1,4 @@
-package basiclog
+package simplelog
 
 func WriteToStdout(toLog bool, values ...any) {
 	if toLog {
