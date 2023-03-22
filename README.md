@@ -1,1 +1,1 @@
-# basiclog
+# Simplelog
