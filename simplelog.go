@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 const LineBreak = "\n"
@@ -28,11 +29,15 @@ type simpleLog struct {
 	multiChan  chan data
 
 	// service channels
-	serviceStop    chan trigger
-	serviceStarted chan trigger
+	serviceStop chan trigger
+	// serviceStarted chan trigger
+
+	// service parts
+	serviceRunState bool
+	mtx             sync.Mutex
 }
 
-var bLog = &simpleLog{}
+var simLog = &simpleLog{}
 
 func (b *simpleLog) StdoutChan() chan data {
 	return b.stdoutChan
@@ -50,10 +55,6 @@ func (b *simpleLog) ServiceStop() chan trigger {
 	return b.serviceStop
 }
 
-func (b *simpleLog) ServiceStarted() chan trigger {
-	return b.serviceStarted
-}
-
 func (b *simpleLog) FileHandle() *os.File {
 	return b.fileHandle
 }
@@ -64,6 +65,18 @@ func (b *simpleLog) StdoutLogger() *log.Logger {
 
 func (b *simpleLog) FileLogger() *log.Logger {
 	return b.fileLogger
+}
+
+func (b *simpleLog) ServiceRunState() bool {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	return b.serviceRunState
+}
+
+func (b *simpleLog) SetServiceRunState(newState bool) {
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+	b.serviceRunState = newState
 }
 
 func (b *simpleLog) initialize(logName string) {
@@ -80,23 +93,12 @@ func (b *simpleLog) initialize(logName string) {
 	b.fileLogger = log.New(b.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
 
 	// setup data and service channels
-	b.stdoutChan = make(chan data)
-	b.fileChan = make(chan data)
-	b.multiChan = make(chan data)
+	b.stdoutChan = make(chan data, 10)
+	b.fileChan = make(chan data, 10)
+	b.multiChan = make(chan data, 10)
 	b.serviceStop = make(chan trigger)
-	b.serviceStarted = make(chan trigger, 1)
 
-	// all is setup - mark service as started (prevents a second service from being started at the same time)
-	bLog.ServiceStarted() <- trigger{}
-}
-
-func (b *simpleLog) cleanup() {
-	close(b.stdoutChan)
-	close(b.fileChan)
-	close(b.multiChan)
-	close(b.serviceStop)
-
-	b.fileHandle.Close()
+	simLog.serviceRunState = true
 }
 
 func assembleToString(values []any) string {

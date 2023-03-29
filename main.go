@@ -1,60 +1,89 @@
 package simplelog
 
-func WriteToStdout(toLog bool, values ...any) {
-	if toLog {
-		logMessage := assembleToString(values)
-		ld := data{"", logMessage}
-		bLog.StdoutChan() <- ld
+import (
+	"errors"
+	"fmt"
+	"runtime"
+	"time"
+)
+
+func WriteToStdout(enabled bool, values ...any) {
+	if enabled {
+		if simLog.ServiceRunState() {
+			logMessage := assembleToString(values)
+			ld := data{"", logMessage}
+			simLog.StdoutChan() <- ld
+		} else {
+			fmt.Println("Log service is not running.")
+		}
 	}
 }
 
-func WriteToFile(toLog bool, prefix string, values ...any) {
-	if toLog {
-		logMessage := assembleToString(values)
-		ld := data{prefix, logMessage}
-		bLog.FileChan() <- ld
+func WriteToFile(enabled bool, prefix string, values ...any) {
+	if enabled {
+		if simLog.ServiceRunState() {
+			logMessage := assembleToString(values)
+			ld := data{prefix, logMessage}
+			simLog.FileChan() <- ld
+		} else {
+			fmt.Println("Log service is not running.")
+		}
 	}
 }
 
-func WriteToMultiple(toLog bool, prefix string, values ...any) {
-	if toLog {
-		logMessage := assembleToString(values)
-		ld := data{prefix, logMessage}
-		bLog.MultiChan() <- ld
+func WriteToMultiple(enabled bool, prefix string, values ...any) {
+	if enabled {
+		if simLog.ServiceRunState() {
+			logMessage := assembleToString(values)
+			ld := data{prefix, logMessage}
+			simLog.MultiChan() <- ld
+		} else {
+			fmt.Println("Log service is not running.")
+		}
 	}
 }
 
-func StartService(logName string) {
-	if len(bLog.ServiceStarted()) == 0 {
-		bLog.initialize(logName)
+func StartService(logName string) error {
+	var err error
+	if !simLog.ServiceRunState() {
+		simLog.initialize(logName)
 		go func() {
+			defer close(simLog.StdoutChan())
+			defer close(simLog.FileChan())
+			defer close(simLog.MultiChan())
+			defer close(simLog.ServiceStop())
+			defer simLog.fileHandle.Close()
+
 			for {
 				select {
-				case logToStdout := <-bLog.StdoutChan():
-					bLog.StdoutLogger().SetPrefix(logToStdout.prefix)
-					bLog.StdoutLogger().Print(logToStdout.msg)
-				case logToFile := <-bLog.FileChan():
-					bLog.FileLogger().SetPrefix(logToFile.prefix)
-					bLog.FileLogger().Print(logToFile.msg)
-				case logToMulti := <-bLog.MultiChan():
-					bLog.StdoutLogger().Print(logToMulti.msg)
-					bLog.FileLogger().SetPrefix(logToMulti.prefix)
-					bLog.FileLogger().Print(logToMulti.msg)
-				case <-bLog.ServiceStop():
-					<-bLog.ServiceStarted()
-					// signal that the service is closed
-					bLog.ServiceStop() <- trigger{}
+				case logToStdout := <-simLog.StdoutChan():
+					simLog.StdoutLogger().Print(logToStdout.msg)
+				case logToFile := <-simLog.FileChan():
+					simLog.FileLogger().SetPrefix(logToFile.prefix)
+					simLog.FileLogger().Print(logToFile.msg)
+				case logToMulti := <-simLog.MultiChan():
+					simLog.StdoutLogger().Print(logToMulti.msg)
+					simLog.FileLogger().SetPrefix(logToMulti.prefix)
+					simLog.FileLogger().Print(logToMulti.msg)
+				case <-simLog.ServiceStop():
+					fmt.Println("Service stopped.")
+					simLog.SetServiceRunState(false)
 					return
 				}
 			}
 		}()
+	} else {
+		_, filename, line, _ := runtime.Caller(1)
+		errMsg := fmt.Sprintf("Log service was already started - %s: %d\n", filename, line)
+		err = errors.New(errMsg)
 	}
+
+	return err
 }
 
 func StopService() {
-	defer bLog.cleanup()
-	// close the service
-	bLog.ServiceStop() <- trigger{}
-	// wait for the service to close
-	<-bLog.ServiceStop()
+	time.Sleep(time.Millisecond) // give kicked off log messages a chance to be logged
+	if simLog.ServiceRunState() {
+		simLog.ServiceStop() <- trigger{}
+	}
 }
