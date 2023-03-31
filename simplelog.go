@@ -52,7 +52,7 @@ func (sl *simpleLogger) Logger(target int, msgPrefix string) *log.Logger {
 		case FILE:
 			sl.logHandle[key] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
 			if !firstFileLogHandler {
-				// a new service always adds an empty line to the log file at the beginning
+				// the first file log event always adds an empty line to the log file at the beginning
 				sl.fileHandle.WriteString(LineBreak)
 				firstFileLogHandler = true
 			}
