@@ -5,98 +5,93 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 const LineBreak = "\n"
 
+const (
+	STDOUT = iota
+	FILE
+	MULTI
+)
+
 type trigger struct{}
 
-type data struct {
+type message struct {
+	target int
 	prefix string
-	msg    string
+	data   string
 }
 
-type simpleLog struct {
+type simpleLogger struct {
 	// handler
-	fileHandle   *os.File
-	stdoutLogger *log.Logger
-	fileLogger   *log.Logger
+	fileHandle *os.File
+	logHandle  map[string]*log.Logger
 
-	// data channels
-	stdoutChan chan data
-	fileChan   chan data
-	multiChan  chan data
+	// channels
+	dataChan    chan message
+	stopService chan trigger
 
-	// service channels
-	serviceStop    chan trigger
-	serviceStarted chan trigger
+	// service
+	serviceRunState bool
+	mtx             sync.Mutex
 }
 
-var bLog = &simpleLog{}
+var sLog = &simpleLogger{}
+var firstFileLogHandler = false
 
-func (b *simpleLog) StdoutChan() chan data {
-	return b.stdoutChan
+func (sl *simpleLogger) Logger(target int, msgPrefix string) *log.Logger {
+	// build key for log handler map
+	key := fmt.Sprintf("%d_%s", target, msgPrefix)
+	if _, found := sl.logHandle[key]; !found {
+		// create a new log handler
+		switch target {
+		case STDOUT:
+			sl.logHandle[key] = log.New(os.Stdout, "", 0)
+		case FILE:
+			sl.logHandle[key] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
+			if !firstFileLogHandler {
+				// a new service always adds an empty line to the log file at the beginning
+				sl.fileHandle.WriteString(LineBreak)
+				firstFileLogHandler = true
+			}
+		}
+	}
+
+	return sl.logHandle[key]
 }
 
-func (b *simpleLog) FileChan() chan data {
-	return b.fileChan
+func (sl *simpleLogger) ServiceRunState() bool {
+	sl.mtx.Lock()
+	defer sl.mtx.Unlock()
+	return sl.serviceRunState
 }
 
-func (b *simpleLog) MultiChan() chan data {
-	return b.multiChan
+func (sl *simpleLogger) SetServiceRunState(newState bool) {
+	sl.mtx.Lock()
+	defer sl.mtx.Unlock()
+	sl.serviceRunState = newState
 }
 
-func (b *simpleLog) ServiceStop() chan trigger {
-	return b.serviceStop
-}
-
-func (b *simpleLog) ServiceStarted() chan trigger {
-	return b.serviceStarted
-}
-
-func (b *simpleLog) FileHandle() *os.File {
-	return b.fileHandle
-}
-
-func (b *simpleLog) StdoutLogger() *log.Logger {
-	return b.stdoutLogger
-}
-
-func (b *simpleLog) FileLogger() *log.Logger {
-	return b.fileLogger
-}
-
-func (b *simpleLog) initialize(logName string) {
+func (sl *simpleLogger) initialize(logName string, chanBuffer int) {
 	// setup log file
 	var err error
-	b.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	sl.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
-	b.fileHandle.WriteString(LineBreak)
 
-	// setup log handlers
-	b.stdoutLogger = log.New(os.Stdout, "", 0)
-	b.fileLogger = log.New(b.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
+	// setup log handler
+	// This map stored log handler with different properties, e.g. target and/or message prefixes.
+	sl.logHandle = make(map[string]*log.Logger)
 
-	// setup data and service channels
-	b.stdoutChan = make(chan data)
-	b.fileChan = make(chan data)
-	b.multiChan = make(chan data)
-	b.serviceStop = make(chan trigger)
-	b.serviceStarted = make(chan trigger, 1)
+	// setup channels
+	sl.dataChan = make(chan message, chanBuffer)
+	sl.stopService = make(chan trigger)
 
-	// all is setup - mark service as started (prevents a second service from being started at the same time)
-	bLog.ServiceStarted() <- trigger{}
-}
-
-func (b *simpleLog) cleanup() {
-	close(b.stdoutChan)
-	close(b.fileChan)
-	close(b.multiChan)
-	close(b.serviceStop)
-
-	b.fileHandle.Close()
+	// setup state
+	sl.serviceRunState = true
 }
 
 func assembleToString(values []any) string {
