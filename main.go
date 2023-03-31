@@ -1,89 +1,83 @@
 package simplelog
 
 import (
-	"errors"
 	"fmt"
 	"runtime"
-	"time"
 )
 
-func WriteToStdout(enabled bool, values ...any) {
-	if enabled {
-		if simLog.ServiceRunState() {
-			logMessage := assembleToString(values)
-			ld := data{"", logMessage}
-			simLog.StdoutChan() <- ld
-		} else {
-			fmt.Println("Log service is not running.")
-		}
+func WriteToStdout(prefix string, values ...any) {
+	if sLog.ServiceRunState() {
+		logMessage := assembleToString(values)
+		ld := message{STDOUT, prefix, logMessage}
+		sLog.dataChan <- ld
+	} else {
+		// TODO: add panic call
+		fmt.Println("Log service has not been started.")
 	}
 }
 
-func WriteToFile(enabled bool, prefix string, values ...any) {
-	if enabled {
-		if simLog.ServiceRunState() {
-			logMessage := assembleToString(values)
-			ld := data{prefix, logMessage}
-			simLog.FileChan() <- ld
-		} else {
-			fmt.Println("Log service is not running.")
-		}
+func WriteToFile(prefix string, values ...any) {
+	if sLog.ServiceRunState() {
+		logMessage := assembleToString(values)
+		ld := message{FILE, prefix, logMessage}
+		sLog.dataChan <- ld
+	} else {
+		// TODO: add panic call
+		fmt.Println("Log service has not been started.")
 	}
 }
 
-func WriteToMultiple(enabled bool, prefix string, values ...any) {
-	if enabled {
-		if simLog.ServiceRunState() {
-			logMessage := assembleToString(values)
-			ld := data{prefix, logMessage}
-			simLog.MultiChan() <- ld
-		} else {
-			fmt.Println("Log service is not running.")
-		}
+func WriteToMultiple(prefix string, values ...any) {
+	if sLog.ServiceRunState() {
+		logMessage := assembleToString(values)
+		ld := message{MULTI, prefix, logMessage}
+		sLog.dataChan <- ld
+	} else {
+		// TODO: add panic call
+		fmt.Println("Log service has not been started.")
 	}
 }
 
-func StartService(logName string) error {
-	var err error
-	if !simLog.ServiceRunState() {
-		simLog.initialize(logName)
+func StartService(logName string, msgBuffer int) {
+	if !sLog.ServiceRunState() {
+		sLog.initialize(logName, msgBuffer)
 		go func() {
-			defer close(simLog.StdoutChan())
-			defer close(simLog.FileChan())
-			defer close(simLog.MultiChan())
-			defer close(simLog.ServiceStop())
-			defer simLog.fileHandle.Close()
+			defer close(sLog.dataChan)
+			defer close(sLog.stopService)
+			defer sLog.fileHandle.Close()
 
 			for {
 				select {
-				case logToStdout := <-simLog.StdoutChan():
-					simLog.StdoutLogger().Print(logToStdout.msg)
-				case logToFile := <-simLog.FileChan():
-					simLog.FileLogger().SetPrefix(logToFile.prefix)
-					simLog.FileLogger().Print(logToFile.msg)
-				case logToMulti := <-simLog.MultiChan():
-					simLog.StdoutLogger().Print(logToMulti.msg)
-					simLog.FileLogger().SetPrefix(logToMulti.prefix)
-					simLog.FileLogger().Print(logToMulti.msg)
-				case <-simLog.ServiceStop():
-					fmt.Println("Service stopped.")
-					simLog.SetServiceRunState(false)
+				case logMessage := <-sLog.dataChan:
+					switch logMessage.target {
+					case STDOUT:
+						sLog.Logger(STDOUT, logMessage.prefix).Print(logMessage.data)
+					case FILE:
+						sLog.Logger(FILE, logMessage.prefix).Print(logMessage.data)
+					case MULTI:
+						sLog.Logger(STDOUT, logMessage.prefix).Print(logMessage.data)
+						sLog.Logger(FILE, logMessage.prefix).Print(logMessage.data)
+					}
+				case <-sLog.stopService:
+					sLog.SetServiceRunState(false)
 					return
 				}
 			}
 		}()
 	} else {
 		_, filename, line, _ := runtime.Caller(1)
-		errMsg := fmt.Sprintf("Log service was already started - %s: %d\n", filename, line)
-		err = errors.New(errMsg)
+		errMsg := fmt.Sprintf("Log service was already started - %s: %d", filename, line)
+		panic(errMsg)
 	}
-
-	return err
 }
 
 func StopService() {
-	time.Sleep(time.Millisecond) // give kicked off log messages a chance to be logged
-	if simLog.ServiceRunState() {
-		simLog.ServiceStop() <- trigger{}
+	if sLog.ServiceRunState() {
+		// wait until all messages have been logged by the service
+		for len(sLog.dataChan) > 0 {
+			continue
+		}
+		sLog.stopService <- trigger{}
 	}
+	// TODO: add panic call
 }
