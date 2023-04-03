@@ -1,7 +1,6 @@
 package simplelog
 
 import (
-	// "fmt"
 	"os"
 	"time"
 )
@@ -54,7 +53,7 @@ func service() {
 }
 
 func StartService(msgBuffer int) {
-	if !sLog.runState() {
+	if !sLog.serviceState() {
 		sLog.initialize(msgBuffer)
 		go service()
 	} else {
@@ -67,20 +66,20 @@ func StopService() {
 	defer close(sLog.stopLogService)
 	defer sLog.fileHandle.Close()
 
-	if sLog.runState() {
+	if sLog.serviceState() {
 		// wait until all messages have been logged by the service
 		for len(sLog.data) > 0 {
 			continue
 		}
 		// all messages are logged - the services can be stopped gracefully
-		sLog.stopLogService <- trigger{}
+		sLog.stopLogService <- signal{}
 	} else {
 		panic(msg003)
 	}
 }
 
 func SetLogName(logName string) {
-	if sLog.runState() {
+	if sLog.serviceState() {
 		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
 		if sLog.fileHandle == nil {
 			sLog.config <- cfgMessage{SETLOGNAME, logName}
@@ -93,7 +92,7 @@ func SetLogName(logName string) {
 }
 
 func WriteToStdout(prefix string, values ...any) {
-	if sLog.runState() {
+	if sLog.serviceState() {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{STDOUT, prefix, logRecord}
 	} else {
@@ -102,7 +101,7 @@ func WriteToStdout(prefix string, values ...any) {
 }
 
 func WriteToFile(prefix string, values ...any) {
-	if sLog.runState() {
+	if sLog.serviceState() {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{FILE, prefix, logRecord}
 	} else {
@@ -111,7 +110,7 @@ func WriteToFile(prefix string, values ...any) {
 }
 
 func WriteToMultiple(prefix string, values ...any) {
-	if sLog.runState() {
+	if sLog.serviceState() {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{MULTI, prefix, logRecord}
 	} else {

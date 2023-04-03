@@ -10,17 +10,19 @@ import (
 
 const LineBreak = "\n"
 
+// log targets
 const (
 	STDOUT = iota
 	FILE
 	MULTI
 )
 
+// configuration properties
 const (
 	SETLOGNAME = iota
 )
 
-type trigger struct{}
+type signal struct{}
 
 type logMessage struct {
 	target int
@@ -41,11 +43,11 @@ type simpleLogger struct {
 	// channels
 	data           chan logMessage
 	config         chan cfgMessage
-	stopLogService chan trigger
+	stopLogService chan signal
 
 	// service
-	serviceRunState bool
-	mtx             sync.Mutex
+	state bool
+	mtx   sync.Mutex
 }
 
 var sLog = &simpleLogger{}
@@ -74,16 +76,16 @@ func (sl *simpleLogger) logger(target int, msgPrefix string) *log.Logger {
 	return sl.logHandle[key]
 }
 
-func (sl *simpleLogger) runState() bool {
+func (sl *simpleLogger) serviceState() bool {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sl.serviceRunState
+	return sl.state
 }
 
 func (sl *simpleLogger) setRunState(newState bool) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	sl.serviceRunState = newState
+	sl.state = newState
 }
 
 func (sl *simpleLogger) stdoutLogger(prefix string) *log.Logger {
@@ -112,10 +114,10 @@ func (sl *simpleLogger) initialize(buffer int) {
 	// setup channels
 	sl.data = make(chan logMessage, buffer)
 	sl.config = make(chan cfgMessage)
-	sl.stopLogService = make(chan trigger)
+	sl.stopLogService = make(chan signal)
 
-	// setup state
-	sl.serviceRunState = true
+	// setup service state
+	sl.state = true
 }
 
 func assembleToString(values []any) string {
