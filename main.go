@@ -1,9 +1,16 @@
 package simplelog
 
 import (
-	"fmt"
 	"os"
 	"time"
+)
+
+const (
+	msg001 = "log file name not set"
+	msg002 = "log service was already started"
+	msg003 = "log service is not running"
+	msg004 = "log service has not been started"
+	msg005 = "log file name already set"
 )
 
 func service() {
@@ -22,7 +29,7 @@ func service() {
 				if logger != nil {
 					logger.Print(logMsg.record)
 				} else {
-					panic("log file name not set")
+					panic(msg001)
 				}
 			case MULTI:
 				sLog.Logger(STDOUT, logMsg.prefix).Print(logMsg.record)
@@ -46,7 +53,7 @@ func StartService(msgBuffer int) {
 		sLog.initialize(msgBuffer)
 		go service()
 	} else {
-		panic("log service was already started")
+		panic(msg002)
 	}
 }
 
@@ -58,17 +65,21 @@ func StopService() {
 		}
 		// all messages are logged - the services can be stopped gracefully
 		sLog.stopLogService <- trigger{}
+	} else {
+		panic(msg003)
 	}
-	// TODO: add panic call
 }
 
 func SetLogName(logName string) {
 	if sLog.runState() {
-		time.Sleep(10 * time.Millisecond) // to keep the logical order of write calls and setup calls
-		sLog.config <- cfgMessage{SETLOGNAME, logName}
+		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
+		if sLog.fileHandle == nil {
+			sLog.config <- cfgMessage{SETLOGNAME, logName}
+		} else {
+			panic(msg005)
+		}
 	} else {
-		// TODO: add panic call
-		fmt.Println("log service has not been started.")
+		panic(msg004)
 	}
 }
 
@@ -77,8 +88,7 @@ func WriteToStdout(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{STDOUT, prefix, logRecord}
 	} else {
-		// TODO: add panic call
-		fmt.Println("log service has not been started.")
+		panic(msg004)
 	}
 }
 
@@ -87,8 +97,7 @@ func WriteToFile(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{FILE, prefix, logRecord}
 	} else {
-		// TODO: add panic call
-		fmt.Println("log service has not been started.")
+		panic(msg004)
 	}
 }
 
@@ -97,7 +106,6 @@ func WriteToMultiple(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{MULTI, prefix, logRecord}
 	} else {
-		// TODO: add panic call
-		fmt.Println("log service has not been started.")
+		panic(msg004)
 	}
 }
