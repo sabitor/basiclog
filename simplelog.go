@@ -30,7 +30,7 @@ type simpleLogger struct {
 	logHandle  map[string]*log.Logger
 
 	// channels
-	dataChan    chan message
+	data        chan message
 	stopService chan trigger
 
 	// service
@@ -74,20 +74,32 @@ func (sl *simpleLogger) SetServiceRunState(newState bool) {
 	sl.serviceRunState = newState
 }
 
-func (sl *simpleLogger) initialize(logName string, chanBuffer int) {
-	// setup log file
+func (sl *simpleLogger) SetLogName(logName string) {
 	var err error
 	sl.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
+}
+
+func (sl *simpleLogger) initialize(buffer int) {
+	// setup log file using an initial log name
+	// initialLogName, err := os.Executable()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// initialLogName += ".log"
+	// sl.fileHandle, err = os.OpenFile(initialLogName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// setup log handler
 	// This map stored log handler with different properties, e.g. target and/or message prefixes.
 	sl.logHandle = make(map[string]*log.Logger)
 
 	// setup channels
-	sl.dataChan = make(chan message, chanBuffer)
+	sl.data = make(chan message, buffer)
 	sl.stopService = make(chan trigger)
 
 	// setup state
