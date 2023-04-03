@@ -9,7 +9,7 @@ func WriteToStdout(prefix string, values ...any) {
 	if sLog.ServiceRunState() {
 		logMessage := assembleToString(values)
 		ld := message{STDOUT, prefix, logMessage}
-		sLog.dataChan <- ld
+		sLog.data <- ld
 	} else {
 		// TODO: add panic call
 		fmt.Println("Log service has not been started.")
@@ -20,7 +20,7 @@ func WriteToFile(prefix string, values ...any) {
 	if sLog.ServiceRunState() {
 		logMessage := assembleToString(values)
 		ld := message{FILE, prefix, logMessage}
-		sLog.dataChan <- ld
+		sLog.data <- ld
 	} else {
 		// TODO: add panic call
 		fmt.Println("Log service has not been started.")
@@ -31,24 +31,24 @@ func WriteToMultiple(prefix string, values ...any) {
 	if sLog.ServiceRunState() {
 		logMessage := assembleToString(values)
 		ld := message{MULTI, prefix, logMessage}
-		sLog.dataChan <- ld
+		sLog.data <- ld
 	} else {
 		// TODO: add panic call
 		fmt.Println("Log service has not been started.")
 	}
 }
 
-func StartService(logName string, msgBuffer int) {
+func StartService(msgBuffer int) {
 	if !sLog.ServiceRunState() {
-		sLog.initialize(logName, msgBuffer)
+		sLog.initialize(msgBuffer)
 		go func() {
-			defer close(sLog.dataChan)
+			defer close(sLog.data)
 			defer close(sLog.stopService)
 			defer sLog.fileHandle.Close()
 
 			for {
 				select {
-				case logMessage := <-sLog.dataChan:
+				case logMessage := <-sLog.data:
 					switch logMessage.target {
 					case STDOUT:
 						sLog.Logger(STDOUT, logMessage.prefix).Print(logMessage.data)
@@ -74,9 +74,10 @@ func StartService(logName string, msgBuffer int) {
 func StopService() {
 	if sLog.ServiceRunState() {
 		// wait until all messages have been logged by the service
-		for len(sLog.dataChan) > 0 {
+		for len(sLog.data) > 0 {
 			continue
 		}
+		// all messages are logged - the service can be stopped gracefully
 		sLog.stopService <- trigger{}
 	}
 	// TODO: add panic call
