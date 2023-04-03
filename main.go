@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	// "fmt"
 	"os"
 	"time"
 )
@@ -14,36 +15,40 @@ const (
 )
 
 func service() {
-	defer close(sLog.data)
-	defer close(sLog.stopLogService)
-	defer sLog.fileHandle.Close()
-
 	for {
 		select {
 		case logMsg := <-sLog.data:
 			switch logMsg.target {
 			case STDOUT:
-				sLog.Logger(STDOUT, logMsg.prefix).Print(logMsg.record)
+				stdoutLogHandle := sLog.stdoutLogger(logMsg.prefix)
+				stdoutLogHandle.Print(logMsg.record)
 			case FILE:
-				logger := sLog.Logger(FILE, logMsg.prefix)
-				if logger != nil {
-					logger.Print(logMsg.record)
+				fileLogHandle := sLog.fileLogger(logMsg.prefix)
+				if fileLogHandle != nil {
+					fileLogHandle.Print(logMsg.record)
 				} else {
 					panic(msg001)
 				}
 			case MULTI:
-				sLog.Logger(STDOUT, logMsg.prefix).Print(logMsg.record)
-				sLog.Logger(FILE, logMsg.prefix).Print(logMsg.record)
+				stdoutLogHandle, fileLogHandle := sLog.multiLogger(logMsg.prefix)
+				stdoutLogHandle.Print(logMsg.record)
+				if fileLogHandle != nil {
+					fileLogHandle.Print(logMsg.record)
+				} else {
+					panic(msg001)
+				}
 			}
 		case <-sLog.stopLogService:
 			sLog.setRunState(false)
 			return
 		case cfgMsg := <-sLog.config:
+			sLog.mtx.Lock()
 			var err error
 			sLog.fileHandle, err = os.OpenFile(cfgMsg.data, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				panic(err)
 			}
+			sLog.mtx.Unlock()
 		}
 	}
 }
@@ -58,6 +63,10 @@ func StartService(msgBuffer int) {
 }
 
 func StopService() {
+	defer close(sLog.data)
+	defer close(sLog.stopLogService)
+	defer sLog.fileHandle.Close()
+
 	if sLog.runState() {
 		// wait until all messages have been logged by the service
 		for len(sLog.data) > 0 {

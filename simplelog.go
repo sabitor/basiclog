@@ -51,7 +51,7 @@ type simpleLogger struct {
 var sLog = &simpleLogger{}
 var firstFileLogHandler = false
 
-func (sl *simpleLogger) Logger(target int, msgPrefix string) *log.Logger {
+func (sl *simpleLogger) logger(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	key := fmt.Sprintf("%d_%s", target, msgPrefix)
 	if _, found := sl.logHandle[key]; !found {
@@ -86,6 +86,24 @@ func (sl *simpleLogger) setRunState(newState bool) {
 	sl.serviceRunState = newState
 }
 
+func (sl *simpleLogger) stdoutLogger(prefix string) *log.Logger {
+	sl.mtx.Lock()
+	defer sl.mtx.Unlock()
+	return sLog.logger(STDOUT, prefix)
+}
+
+func (sl *simpleLogger) fileLogger(prefix string) *log.Logger {
+	sl.mtx.Lock()
+	defer sl.mtx.Unlock()
+	return sLog.logger(FILE, prefix)
+}
+
+func (sl *simpleLogger) multiLogger(prefix string) (*log.Logger, *log.Logger) {
+	sl.mtx.Lock()
+	defer sl.mtx.Unlock()
+	return sLog.logger(STDOUT, prefix), sLog.logger(FILE, prefix)
+}
+
 func (sl *simpleLogger) initialize(buffer int) {
 	// setup log handler
 	// The log handler map stores log handler with different properties, e.g. target and/or message prefixes.
@@ -93,8 +111,8 @@ func (sl *simpleLogger) initialize(buffer int) {
 
 	// setup channels
 	sl.data = make(chan logMessage, buffer)
-	sl.stopLogService = make(chan trigger)
 	sl.config = make(chan cfgMessage)
+	sl.stopLogService = make(chan trigger)
 
 	// setup state
 	sl.serviceRunState = true
