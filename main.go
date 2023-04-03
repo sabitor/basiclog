@@ -13,27 +13,27 @@ func service() {
 
 	for {
 		select {
-		case logMessage := <-sLog.data:
-			switch logMessage.target {
+		case logMsg := <-sLog.data:
+			switch logMsg.target {
 			case STDOUT:
-				sLog.Logger(STDOUT, logMessage.prefix).Print(logMessage.logData)
+				sLog.Logger(STDOUT, logMsg.prefix).Print(logMsg.record)
 			case FILE:
-				logger := sLog.Logger(FILE, logMessage.prefix)
+				logger := sLog.Logger(FILE, logMsg.prefix)
 				if logger != nil {
-					logger.Print(logMessage.logData)
+					logger.Print(logMsg.record)
 				} else {
 					panic("log file name not set")
 				}
 			case MULTI:
-				sLog.Logger(STDOUT, logMessage.prefix).Print(logMessage.logData)
-				sLog.Logger(FILE, logMessage.prefix).Print(logMessage.logData)
+				sLog.Logger(STDOUT, logMsg.prefix).Print(logMsg.record)
+				sLog.Logger(FILE, logMsg.prefix).Print(logMsg.record)
 			}
 		case <-sLog.stopLogService:
 			sLog.setRunState(false)
 			return
-		case configMessage := <-sLog.task:
+		case cfgMsg := <-sLog.config:
 			var err error
-			sLog.fileHandle, err = os.OpenFile(configMessage.cfgData, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			sLog.fileHandle, err = os.OpenFile(cfgMsg.data, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
 				panic(err)
 			}
@@ -65,8 +65,7 @@ func StopService() {
 func SetLogName(logName string) {
 	if sLog.runState() {
 		time.Sleep(10 * time.Millisecond) // to keep the logical order of write calls and setup calls
-		task := config{SETLOGNAME, logName}
-		sLog.task <- task
+		sLog.config <- cfgMessage{SETLOGNAME, logName}
 	} else {
 		// TODO: add panic call
 		fmt.Println("log service has not been started.")
@@ -75,9 +74,8 @@ func SetLogName(logName string) {
 
 func WriteToStdout(prefix string, values ...any) {
 	if sLog.runState() {
-		logMessage := assembleToString(values)
-		data := message{STDOUT, prefix, logMessage}
-		sLog.data <- data
+		logRecord := assembleToString(values)
+		sLog.data <- logMessage{STDOUT, prefix, logRecord}
 	} else {
 		// TODO: add panic call
 		fmt.Println("log service has not been started.")
@@ -86,9 +84,8 @@ func WriteToStdout(prefix string, values ...any) {
 
 func WriteToFile(prefix string, values ...any) {
 	if sLog.runState() {
-		logMessage := assembleToString(values)
-		data := message{FILE, prefix, logMessage}
-		sLog.data <- data
+		logRecord := assembleToString(values)
+		sLog.data <- logMessage{FILE, prefix, logRecord}
 	} else {
 		// TODO: add panic call
 		fmt.Println("log service has not been started.")
@@ -97,9 +94,8 @@ func WriteToFile(prefix string, values ...any) {
 
 func WriteToMultiple(prefix string, values ...any) {
 	if sLog.runState() {
-		logMessage := assembleToString(values)
-		data := message{MULTI, prefix, logMessage}
-		sLog.data <- data
+		logRecord := assembleToString(values)
+		sLog.data <- logMessage{MULTI, prefix, logRecord}
 	} else {
 		// TODO: add panic call
 		fmt.Println("log service has not been started.")

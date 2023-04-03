@@ -22,15 +22,15 @@ const (
 
 type trigger struct{}
 
-type message struct {
-	target  int
-	prefix  string
-	logData string
+type logMessage struct {
+	target int
+	prefix string
+	record string
 }
 
-type config struct {
-	attribute int
-	cfgData   string
+type cfgMessage struct {
+	property int
+	data     string
 }
 
 type simpleLogger struct {
@@ -39,8 +39,8 @@ type simpleLogger struct {
 	logHandle  map[string]*log.Logger
 
 	// channels
-	data           chan message
-	task           chan config
+	data           chan logMessage
+	config         chan cfgMessage
 	stopLogService chan trigger
 
 	// service
@@ -92,9 +92,9 @@ func (sl *simpleLogger) initialize(buffer int) {
 	sl.logHandle = make(map[string]*log.Logger)
 
 	// setup channels
-	sl.data = make(chan message, buffer)
+	sl.data = make(chan logMessage, buffer)
 	sl.stopLogService = make(chan trigger)
-	sl.task = make(chan config)
+	sl.config = make(chan cfgMessage)
 
 	// setup state
 	sl.serviceRunState = true
