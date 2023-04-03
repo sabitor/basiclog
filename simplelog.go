@@ -16,12 +16,21 @@ const (
 	MULTI
 )
 
+const (
+	SETLOGNAME = iota
+)
+
 type trigger struct{}
 
 type message struct {
-	target int
-	prefix string
-	data   string
+	target  int
+	prefix  string
+	logData string
+}
+
+type config struct {
+	attribute int
+	cfgData   string
 }
 
 type simpleLogger struct {
@@ -30,8 +39,9 @@ type simpleLogger struct {
 	logHandle  map[string]*log.Logger
 
 	// channels
-	data        chan message
-	stopService chan trigger
+	data           chan message
+	task           chan config
+	stopLogService chan trigger
 
 	// service
 	serviceRunState bool
@@ -50,11 +60,13 @@ func (sl *simpleLogger) Logger(target int, msgPrefix string) *log.Logger {
 		case STDOUT:
 			sl.logHandle[key] = log.New(os.Stdout, "", 0)
 		case FILE:
-			sl.logHandle[key] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
-			if !firstFileLogHandler {
-				// the first file log event always adds an empty line to the log file at the beginning
-				sl.fileHandle.WriteString(LineBreak)
-				firstFileLogHandler = true
+			if sl.fileHandle != nil {
+				sl.logHandle[key] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
+				if !firstFileLogHandler {
+					// the first file log event always adds an empty line to the log file at the beginning
+					sl.fileHandle.WriteString(LineBreak)
+					firstFileLogHandler = true
+				}
 			}
 		}
 	}
@@ -62,45 +74,27 @@ func (sl *simpleLogger) Logger(target int, msgPrefix string) *log.Logger {
 	return sl.logHandle[key]
 }
 
-func (sl *simpleLogger) ServiceRunState() bool {
+func (sl *simpleLogger) runState() bool {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	return sl.serviceRunState
 }
 
-func (sl *simpleLogger) SetServiceRunState(newState bool) {
+func (sl *simpleLogger) setRunState(newState bool) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	sl.serviceRunState = newState
 }
 
-func (sl *simpleLogger) SetLogName(logName string) {
-	var err error
-	sl.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (sl *simpleLogger) initialize(buffer int) {
-	// setup log file using an initial log name
-	// initialLogName, err := os.Executable()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// initialLogName += ".log"
-	// sl.fileHandle, err = os.OpenFile(initialLogName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	// setup log handler
-	// This map stored log handler with different properties, e.g. target and/or message prefixes.
+	// The log handler map stores log handler with different properties, e.g. target and/or message prefixes.
 	sl.logHandle = make(map[string]*log.Logger)
 
 	// setup channels
 	sl.data = make(chan message, buffer)
-	sl.stopService = make(chan trigger)
+	sl.stopLogService = make(chan trigger)
+	sl.task = make(chan config)
 
 	// setup state
 	sl.serviceRunState = true
