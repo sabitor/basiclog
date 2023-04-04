@@ -20,6 +20,13 @@ const (
 // configuration properties
 const (
 	SETLOGNAME = iota
+	CHANGELOGNAME
+)
+
+// service states
+const (
+	STOPPED = iota
+	RUNNING
 )
 
 type signal struct{}
@@ -35,7 +42,7 @@ type cfgMessage struct {
 	data     string
 }
 
-type simpleLogger struct {
+type simpleLog struct {
 	// handler
 	fileHandle *os.File
 	logHandle  map[string]*log.Logger
@@ -46,14 +53,14 @@ type simpleLogger struct {
 	stopLogService chan signal
 
 	// service
-	state bool
+	state int
 	mtx   sync.Mutex
 }
 
-var sLog = &simpleLogger{}
+var sLog = &simpleLog{}
 var firstFileLogHandler = false
 
-func (sl *simpleLogger) logger(target int, msgPrefix string) *log.Logger {
+func (sl *simpleLog) logger(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	key := fmt.Sprintf("%d_%s", target, msgPrefix)
 	if _, found := sl.logHandle[key]; !found {
@@ -76,37 +83,37 @@ func (sl *simpleLogger) logger(target int, msgPrefix string) *log.Logger {
 	return sl.logHandle[key]
 }
 
-func (sl *simpleLogger) serviceState() bool {
+func (sl *simpleLog) serviceState() int {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	return sl.state
 }
 
-func (sl *simpleLogger) setRunState(newState bool) {
+func (sl *simpleLog) setServiceState(newState int) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	sl.state = newState
 }
 
-func (sl *simpleLogger) stdoutLogger(prefix string) *log.Logger {
+func (sl *simpleLog) stdoutLogger(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	return sLog.logger(STDOUT, prefix)
 }
 
-func (sl *simpleLogger) fileLogger(prefix string) *log.Logger {
+func (sl *simpleLog) fileLogger(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	return sLog.logger(FILE, prefix)
 }
 
-func (sl *simpleLogger) multiLogger(prefix string) (*log.Logger, *log.Logger) {
+func (sl *simpleLog) multiLogger(prefix string) (*log.Logger, *log.Logger) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
 	return sLog.logger(STDOUT, prefix), sLog.logger(FILE, prefix)
 }
 
-func (sl *simpleLogger) initialize(buffer int) {
+func (sl *simpleLog) initialize(buffer int) {
 	// setup log handler
 	// The log handler map stores log handler with different properties, e.g. target and/or message prefixes.
 	sl.logHandle = make(map[string]*log.Logger)
@@ -117,7 +124,7 @@ func (sl *simpleLogger) initialize(buffer int) {
 	sl.stopLogService = make(chan signal)
 
 	// setup service state
-	sl.state = true
+	sl.state = RUNNING
 }
 
 func assembleToString(values []any) string {

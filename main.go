@@ -16,6 +16,9 @@ const (
 func service() {
 	for {
 		select {
+		case <-sLog.stopLogService:
+			sLog.setServiceState(STOPPED)
+			return
 		case logMsg := <-sLog.data:
 			switch logMsg.target {
 			case STDOUT:
@@ -37,9 +40,6 @@ func service() {
 					panic(msg001)
 				}
 			}
-		case <-sLog.stopLogService:
-			sLog.setRunState(false)
-			return
 		case cfgMsg := <-sLog.config:
 			sLog.mtx.Lock()
 			var err error
@@ -53,7 +53,7 @@ func service() {
 }
 
 func StartService(msgBuffer int) {
-	if !sLog.serviceState() {
+	if sLog.serviceState() == STOPPED {
 		sLog.initialize(msgBuffer)
 		go service()
 	} else {
@@ -66,7 +66,7 @@ func StopService() {
 	defer close(sLog.stopLogService)
 	defer sLog.fileHandle.Close()
 
-	if sLog.serviceState() {
+	if sLog.serviceState() == RUNNING {
 		// wait until all messages have been logged by the service
 		for len(sLog.data) > 0 {
 			continue
@@ -79,7 +79,7 @@ func StopService() {
 }
 
 func SetLogName(logName string) {
-	if sLog.serviceState() {
+	if sLog.serviceState() == RUNNING {
 		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
 		if sLog.fileHandle == nil {
 			sLog.config <- cfgMessage{SETLOGNAME, logName}
@@ -92,7 +92,7 @@ func SetLogName(logName string) {
 }
 
 func WriteToStdout(prefix string, values ...any) {
-	if sLog.serviceState() {
+	if sLog.serviceState() == RUNNING {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{STDOUT, prefix, logRecord}
 	} else {
@@ -101,7 +101,7 @@ func WriteToStdout(prefix string, values ...any) {
 }
 
 func WriteToFile(prefix string, values ...any) {
-	if sLog.serviceState() {
+	if sLog.serviceState() == RUNNING {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{FILE, prefix, logRecord}
 	} else {
@@ -110,7 +110,7 @@ func WriteToFile(prefix string, values ...any) {
 }
 
 func WriteToMultiple(prefix string, values ...any) {
-	if sLog.serviceState() {
+	if sLog.serviceState() == RUNNING {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{MULTI, prefix, logRecord}
 	} else {
