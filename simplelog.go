@@ -8,25 +8,25 @@ import (
 	"sync"
 )
 
-const LineBreak = "\n"
+const lineBreak = "\n"
 
 // log targets
 const (
-	STDOUT = iota
-	FILE
-	MULTI
+	stdout = iota
+	file
+	multi
 )
 
 // configuration properties
 const (
-	SETLOGNAME = iota
-	CHANGELOGNAME
+	setlogname = iota
+	changelogname
 )
 
 // service states
 const (
-	STOPPED = iota
-	RUNNING
+	stopped = iota
+	running
 )
 
 type signal struct{}
@@ -66,14 +66,14 @@ func (sl *simpleLog) logInstance(target int, msgPrefix string) *log.Logger {
 	if _, found := sl.logHandle[key]; !found {
 		// create a new log handler
 		switch target {
-		case STDOUT:
+		case stdout:
 			sl.logHandle[key] = log.New(os.Stdout, "", 0)
-		case FILE:
+		case file:
 			if sl.fileHandle != nil {
 				sl.logHandle[key] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
 				if !firstFileLogHandler {
 					// the first file log event always adds an empty line to the log file at the beginning
-					sl.fileHandle.WriteString(LineBreak)
+					sl.fileHandle.WriteString(lineBreak)
 					firstFileLogHandler = true
 				}
 			}
@@ -98,19 +98,19 @@ func (sl *simpleLog) setServiceState(newState int) {
 func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logInstance(STDOUT, prefix)
+	return sLog.logInstance(stdout, prefix)
 }
 
 func (sl *simpleLog) fileLog(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logInstance(FILE, prefix)
+	return sLog.logInstance(file, prefix)
 }
 
 func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logInstance(STDOUT, prefix), sLog.logInstance(FILE, prefix)
+	return sLog.logInstance(stdout, prefix), sLog.logInstance(file, prefix)
 }
 
 func (sl *simpleLog) initialize(buffer int) {
@@ -124,7 +124,7 @@ func (sl *simpleLog) initialize(buffer int) {
 	sl.stopLogService = make(chan signal)
 
 	// setup service state
-	sl.state = RUNNING
+	sl.state = running
 }
 
 func assembleToString(values []any) string {

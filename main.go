@@ -17,21 +17,21 @@ func service() {
 	for {
 		select {
 		case <-sLog.stopLogService:
-			sLog.setServiceState(STOPPED)
+			sLog.setServiceState(stopped)
 			return
 		case logMsg := <-sLog.data:
 			switch logMsg.target {
-			case STDOUT:
+			case stdout:
 				stdoutLogHandle := sLog.stdoutLog(logMsg.prefix)
 				stdoutLogHandle.Print(logMsg.record)
-			case FILE:
+			case file:
 				fileLogHandle := sLog.fileLog(logMsg.prefix)
 				if fileLogHandle != nil {
 					fileLogHandle.Print(logMsg.record)
 				} else {
 					panic(msg001)
 				}
-			case MULTI:
+			case multi:
 				stdoutLogHandle, fileLogHandle := sLog.multiLog(logMsg.prefix)
 				stdoutLogHandle.Print(logMsg.record)
 				if fileLogHandle != nil {
@@ -53,7 +53,7 @@ func service() {
 }
 
 func StartService(msgBuffer int) {
-	if sLog.serviceState() == STOPPED {
+	if sLog.serviceState() == stopped {
 		sLog.initialize(msgBuffer)
 		go service()
 	} else {
@@ -66,7 +66,7 @@ func StopService() {
 	defer close(sLog.stopLogService)
 	defer sLog.fileHandle.Close()
 
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		// wait until all messages have been logged by the service
 		for len(sLog.data) > 0 {
 			continue
@@ -79,10 +79,10 @@ func StopService() {
 }
 
 func SetLogName(logName string) {
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
 		if sLog.fileHandle == nil {
-			sLog.config <- cfgMessage{SETLOGNAME, logName}
+			sLog.config <- cfgMessage{setlogname, logName}
 		} else {
 			panic(msg005)
 		}
@@ -92,7 +92,7 @@ func SetLogName(logName string) {
 }
 
 func ChangeLogName(newLogName string) {
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		// TODO: implement
 	} else {
 		panic(msg004)
@@ -100,27 +100,27 @@ func ChangeLogName(newLogName string) {
 }
 
 func WriteToStdout(prefix string, values ...any) {
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
-		sLog.data <- logMessage{STDOUT, prefix, logRecord}
+		sLog.data <- logMessage{stdout, prefix, logRecord}
 	} else {
 		panic(msg004)
 	}
 }
 
 func WriteToFile(prefix string, values ...any) {
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
-		sLog.data <- logMessage{FILE, prefix, logRecord}
+		sLog.data <- logMessage{file, prefix, logRecord}
 	} else {
 		panic(msg004)
 	}
 }
 
 func WriteToMultiple(prefix string, values ...any) {
-	if sLog.serviceState() == RUNNING {
+	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
-		sLog.data <- logMessage{MULTI, prefix, logRecord}
+		sLog.data <- logMessage{multi, prefix, logRecord}
 	} else {
 		panic(msg004)
 	}
