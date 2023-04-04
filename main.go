@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	msg001 = "log file name not set"
-	msg002 = "log service was already started"
-	msg003 = "log service is not running"
-	msg004 = "log service has not been started"
-	msg005 = "log file name already set"
+	sl001e = "log file name not set"
+	sl002e = "log service was already started"
+	sl003e = "log service is not running"
+	sl004e = "log service has not been started"
+	sl005e = "log file name already set"
 )
 
 func service() {
@@ -29,7 +29,7 @@ func service() {
 				if fileLogHandle != nil {
 					fileLogHandle.Print(logMsg.record)
 				} else {
-					panic(msg001)
+					panic(sl001e)
 				}
 			case multi:
 				stdoutLogHandle, fileLogHandle := sLog.multiLog(logMsg.prefix)
@@ -37,7 +37,7 @@ func service() {
 				if fileLogHandle != nil {
 					fileLogHandle.Print(logMsg.record)
 				} else {
-					panic(msg001)
+					panic(sl001e)
 				}
 			}
 		case cfgMsg := <-sLog.config:
@@ -52,12 +52,12 @@ func service() {
 	}
 }
 
-func StartService(msgBuffer int) {
+func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
-		sLog.initialize(msgBuffer)
+		sLog.initialize(bufferSize)
 		go service()
 	} else {
-		panic(msg002)
+		panic(sl002e)
 	}
 }
 
@@ -74,7 +74,7 @@ func StopService() {
 		// all messages are logged - the services can be stopped gracefully
 		sLog.stopLogService <- signal{}
 	} else {
-		panic(msg003)
+		panic(sl003e)
 	}
 }
 
@@ -84,10 +84,10 @@ func SetLogName(logName string) {
 		if sLog.fileHandle == nil {
 			sLog.config <- cfgMessage{setlogname, logName}
 		} else {
-			panic(msg005)
+			panic(sl005e)
 		}
 	} else {
-		panic(msg004)
+		panic(sl004e)
 	}
 }
 
@@ -95,7 +95,7 @@ func ChangeLogName(newLogName string) {
 	if sLog.serviceState() == running {
 		// TODO: implement
 	} else {
-		panic(msg004)
+		panic(sl004e)
 	}
 }
 
@@ -104,7 +104,7 @@ func WriteToStdout(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{stdout, prefix, logRecord}
 	} else {
-		panic(msg004)
+		panic(sl004e)
 	}
 }
 
@@ -113,7 +113,7 @@ func WriteToFile(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{file, prefix, logRecord}
 	} else {
-		panic(msg004)
+		panic(sl004e)
 	}
 }
 
@@ -122,6 +122,6 @@ func WriteToMultiple(prefix string, values ...any) {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{multi, prefix, logRecord}
 	} else {
-		panic(msg004)
+		panic(sl004e)
 	}
 }
