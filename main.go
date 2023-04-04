@@ -22,17 +22,17 @@ func service() {
 		case logMsg := <-sLog.data:
 			switch logMsg.target {
 			case STDOUT:
-				stdoutLogHandle := sLog.stdoutLogger(logMsg.prefix)
+				stdoutLogHandle := sLog.stdoutLog(logMsg.prefix)
 				stdoutLogHandle.Print(logMsg.record)
 			case FILE:
-				fileLogHandle := sLog.fileLogger(logMsg.prefix)
+				fileLogHandle := sLog.fileLog(logMsg.prefix)
 				if fileLogHandle != nil {
 					fileLogHandle.Print(logMsg.record)
 				} else {
 					panic(msg001)
 				}
 			case MULTI:
-				stdoutLogHandle, fileLogHandle := sLog.multiLogger(logMsg.prefix)
+				stdoutLogHandle, fileLogHandle := sLog.multiLog(logMsg.prefix)
 				stdoutLogHandle.Print(logMsg.record)
 				if fileLogHandle != nil {
 					fileLogHandle.Print(logMsg.record)
@@ -86,6 +86,14 @@ func SetLogName(logName string) {
 		} else {
 			panic(msg005)
 		}
+	} else {
+		panic(msg004)
+	}
+}
+
+func ChangeLogName(newLogName string) {
+	if sLog.serviceState() == RUNNING {
+		// TODO: implement
 	} else {
 		panic(msg004)
 	}

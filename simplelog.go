@@ -60,7 +60,7 @@ type simpleLog struct {
 var sLog = &simpleLog{}
 var firstFileLogHandler = false
 
-func (sl *simpleLog) logger(target int, msgPrefix string) *log.Logger {
+func (sl *simpleLog) logInstance(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	key := fmt.Sprintf("%d_%s", target, msgPrefix)
 	if _, found := sl.logHandle[key]; !found {
@@ -95,22 +95,22 @@ func (sl *simpleLog) setServiceState(newState int) {
 	sl.state = newState
 }
 
-func (sl *simpleLog) stdoutLogger(prefix string) *log.Logger {
+func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logger(STDOUT, prefix)
+	return sLog.logInstance(STDOUT, prefix)
 }
 
-func (sl *simpleLog) fileLogger(prefix string) *log.Logger {
+func (sl *simpleLog) fileLog(prefix string) *log.Logger {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logger(FILE, prefix)
+	return sLog.logInstance(FILE, prefix)
 }
 
-func (sl *simpleLog) multiLogger(prefix string) (*log.Logger, *log.Logger) {
+func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	sl.mtx.Lock()
 	defer sl.mtx.Unlock()
-	return sLog.logger(STDOUT, prefix), sLog.logger(FILE, prefix)
+	return sLog.logInstance(STDOUT, prefix), sLog.logInstance(FILE, prefix)
 }
 
 func (sl *simpleLog) initialize(buffer int) {
