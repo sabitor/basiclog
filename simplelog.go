@@ -4,7 +4,7 @@
 // Once started, the simple logger runs as a service and listens for logging
 // requests through the functions WriteTo[Stdout|File|Multiple].
 // As the name of the WriteTo functions suggests, the simple logger writes
-// to either standard out, a log file, or both.
+// to either standard out, a log file, or multiple targets.
 package simplelog
 
 import (
