@@ -101,17 +101,17 @@ func (sl *simpleLog) serviceState() int {
 
 // TODO: add comment
 func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
-	return sLog.logInstance(stdout, prefix)
+	return sLog.handler(stdout, prefix)
 }
 
 // TODO: add comment
 func (sl *simpleLog) fileLog(prefix string) *log.Logger {
-	return sLog.logInstance(file, prefix)
+	return sLog.handler(file, prefix)
 }
 
 // TODO: add comment
 func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
-	return sLog.logInstance(stdout, prefix), sLog.logInstance(file, prefix)
+	return sLog.handler(stdout, prefix), sLog.handler(file, prefix)
 }
 
 // TODO: add comment
@@ -178,7 +178,7 @@ func (sl *simpleLog) changeLogFile(newLogName string) {
 }
 
 // TODO: add comment
-func (sl *simpleLog) logInstance(target int, msgPrefix string) *log.Logger {
+func (sl *simpleLog) handler(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	if _, outer := sl.logHandle[target]; !outer {
 		// allocate memory for a new log handler target map
