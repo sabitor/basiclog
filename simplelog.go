@@ -28,59 +28,59 @@ const (
 
 // log targets
 const (
-	stdout = iota
-	file
-	multi
+	stdout = 1 << iota     // write the log record to STDOUT
+	file                   // write the log record to the log file
+	multi  = stdout | file // write the log record to STDOUT and to the log file
 )
 
 // configuration categories
 const (
-	setlogname = iota
-	changelogname
+	setlogname    = iota // triggers to open and set the log file
+	changelogname        // triggers to change the log file name
 )
 
 // service states
 const (
-	stopped = iota
-	running
+	stopped = iota // indicator of a stopped log service
+	running        // indicator of a running (active) log service
 )
 
-// TODO: add comment
+// A signal will be used as a trigger to handle certain tasks by the log service, whereby no payload data has to be sent the recipient.
 type signal struct{}
 
-// TODO: add comment
+// A logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
-	target int
-	prefix string
-	record string
+	target int    // the log target bits, e.g. stdout, file, and so on.
+	prefix string // the log prefix, which will be written in front of the log record
+	record string // the payload of the log message, which will be sent to the log target
 }
 
-// TODO: add comment
+// A cfgMessage represents the config message which will be sent to the log service.
 type cfgMessage struct {
-	category int
-	data     string
+	category int    // the configuration category bits, which are used to trigger certain config tasks by the log service, e.g. setlogname, changelogname, and so on.
+	data     string // the data, which will be processed by a config task
 }
 
-// TODO: add comment
+// A simpleLog represents an instance of a simple logger.
 type simpleLog struct {
 	// handler
-	fileHandle *os.File
-	logHandle  map[int]map[string]*log.Logger
+	fileHandle *os.File                       // the log file handle
+	logHandle  map[int]map[string]*log.Logger // a map which stores for every log target bit a map which stores the log prefix and its assigned log handle
 
 	// channels
-	data           chan logMessage
-	config         chan cfgMessage
-	stopLogService chan signal
+	data           chan logMessage // the channel for sending log messages to the log service
+	config         chan cfgMessage // the channel for sending config messages to the log service
+	stopLogService chan signal     // the channel for sending a stop message to the log service
 
 	// service
-	state int
+	state int // to save the current state of the log service repesented by the service bits, e.g. stopped, running, and so on
 }
 
-// TODO: add comment
+//  global (package) variables
 var sLog = &simpleLog{}
 var firstFileLogHandler = false
 
-// TODO: add comment
+// setLogFile opens a log file.
 func (sl *simpleLog) setLogFile(logName string) {
 	var err error
 	sLog.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -89,29 +89,31 @@ func (sl *simpleLog) setLogFile(logName string) {
 	}
 }
 
-// TODO: add comment
+// setServiceState sets the state of the log service.
+// The state bits are stopped, running, and so on.
 func (sl *simpleLog) setServiceState(newState int) {
 	sl.state = newState
 }
 
-// TODO: add comment
+// serviceState returns the state of the log service.
+// The returned state bits are stopped, running, and so on.
 func (sl *simpleLog) serviceState() int {
 	return sl.state
 }
 
 // TODO: add comment
 func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
-	return sLog.handler(stdout, prefix)
+	return sLog.handle(stdout, prefix)
 }
 
 // TODO: add comment
 func (sl *simpleLog) fileLog(prefix string) *log.Logger {
-	return sLog.handler(file, prefix)
+	return sLog.handle(file, prefix)
 }
 
 // TODO: add comment
 func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
-	return sLog.handler(stdout, prefix), sLog.handler(file, prefix)
+	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
 }
 
 // TODO: add comment
@@ -178,7 +180,7 @@ func (sl *simpleLog) changeLogFile(newLogName string) {
 }
 
 // TODO: add comment
-func (sl *simpleLog) handler(target int, msgPrefix string) *log.Logger {
+func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	if _, outer := sl.logHandle[target]; !outer {
 		// allocate memory for a new log handler target map
@@ -217,7 +219,7 @@ func assembleToString(values []any) string {
 	return msg
 }
 
-// TODO: add comment
+// StartService ...
 func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
 		sLog.initialize(bufferSize)
@@ -227,7 +229,7 @@ func StartService(bufferSize int) {
 	}
 }
 
-// TODO: add comment
+// StopService ...
 func StopService() {
 	defer close(sLog.data)
 	defer close(sLog.stopLogService)
@@ -245,10 +247,10 @@ func StopService() {
 	}
 }
 
-// TODO: add comment
+// SetLogName ...
 func SetLogName(logName string) {
 	if sLog.serviceState() == running {
-		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
+		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
 		if sLog.fileHandle == nil {
 			sLog.config <- cfgMessage{setlogname, logName}
 		} else {
@@ -259,17 +261,17 @@ func SetLogName(logName string) {
 	}
 }
 
-// TODO: add comment
+// ChangeLogName ...
 func ChangeLogName(newLogName string) {
 	if sLog.serviceState() == running {
-		time.Sleep(10 * time.Millisecond) // to keep the logical order of goroutine function calls
+		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
 		sLog.config <- cfgMessage{changelogname, newLogName}
 	} else {
 		panic(sl004e)
 	}
 }
 
-// TODO: add comment
+// WriteToStdout ...
 func WriteToStdout(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
@@ -279,7 +281,7 @@ func WriteToStdout(prefix string, values ...any) {
 	}
 }
 
-// TODO: add comment
+// WriteToFile ...
 func WriteToFile(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
@@ -289,8 +291,8 @@ func WriteToFile(prefix string, values ...any) {
 	}
 }
 
-// TODO: add comment
-func WriteToMultiple(prefix string, values ...any) {
+// WriteToMulti ...
+func WriteToMulti(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
 		sLog.data <- logMessage{multi, prefix, logRecord}
