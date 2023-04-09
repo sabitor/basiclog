@@ -101,25 +101,26 @@ func (sl *simpleLog) serviceState() int {
 	return sl.state
 }
 
-// TODO: add comment
+// stdoutLog returns a stdout log handle.
 func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
 	return sLog.handle(stdout, prefix)
 }
 
-// TODO: add comment
+// fileLog returns a file log handle.
 func (sl *simpleLog) fileLog(prefix string) *log.Logger {
 	return sLog.handle(file, prefix)
 }
 
-// TODO: add comment
+// multiLog returns a multi log handle.
 func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
 }
 
-// TODO: add comment
+// initialize is invoked during the startup process of the log service.
+// It allocates resources for different simpleLog attributes and
+// sets the state of the log service to running.
 func (sl *simpleLog) initialize(buffer int) {
-	// setup log handler
-	// The log handler map stores log handler with different properties - target and message prefixes.
+	// setup log handle map
 	sl.logHandle = make(map[int]map[string]*log.Logger)
 
 	// setup channels
@@ -131,7 +132,12 @@ func (sl *simpleLog) initialize(buffer int) {
 	sl.state = running
 }
 
-// TODO: add comment
+// service is the main component of the log service.
+// Started in a dedicated goroutine, it handles all messages sent to the log service.
+// It can handle the following messages:
+//   * stopLogService - to signal the end of the log service and to stop further processing
+//   * data           - log messages, used to write messages to the assigned log target
+//   * config         - config messages, used to configure how the log service works
 func service() {
 	for {
 		select {
@@ -170,7 +176,8 @@ func service() {
 	}
 }
 
-// TODO: add comment
+// changeLogFile changes the name of the log file.
+// The log service doesn't have to be stopped for this task.
 func (sl *simpleLog) changeLogFile(newLogName string) {
 	// remove all file log handles from the logHandler map which are linked to the old log name
 	delete(sLog.logHandle, file)
@@ -179,11 +186,12 @@ func (sl *simpleLog) changeLogFile(newLogName string) {
 	sLog.setLogFile(newLogName)
 }
 
-// TODO: add comment
+// handle returns a log handle for a given log target and message prefix.
+// Each combination of log target and message prefix is assinged its own log handler.
 func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
 	if _, outer := sl.logHandle[target]; !outer {
-		// allocate memory for a new log handler target map
+		// allocate resources for a new log handler target map
 		sl.logHandle[target] = make(map[string]*log.Logger)
 	}
 	if _, inner := sl.logHandle[target][msgPrefix]; !inner {
@@ -195,7 +203,7 @@ func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 			if sl.fileHandle != nil {
 				sl.logHandle[file][msgPrefix] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
 				if !firstFileLogHandler {
-					// the first file log event always adds an empty line to the log file at the beginning
+					// the first file log event always adds an empty line to the log file
 					sl.fileHandle.WriteString(lineBreak)
 					firstFileLogHandler = true
 				}
@@ -205,7 +213,8 @@ func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 	return sl.logHandle[target][msgPrefix]
 }
 
-// TODO: add comment
+// assembleToString joins the variadic function parameters to one result message.
+// The different parameters are separated by space characters.
 func assembleToString(values []any) string {
 	valueList := make([]string, len(values))
 	for i, v := range values {
