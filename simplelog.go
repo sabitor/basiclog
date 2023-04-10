@@ -116,21 +116,22 @@ func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
 }
 
+// REMOVE
 // initialize is invoked during the startup process of the log service.
 // It allocates resources for different simpleLog attributes and
 // sets the state of the log service to running.
-func (sl *simpleLog) initialize(buffer int) {
-	// setup log handle map
-	sl.logHandle = make(map[int]map[string]*log.Logger)
+// func (sl *simpleLog) initialize(buffer int) {
+// 	// setup log handle map
+// 	sl.logHandle = make(map[int]map[string]*log.Logger)
 
-	// setup channels
-	sl.data = make(chan logMessage, buffer)
-	sl.config = make(chan cfgMessage)
-	sl.stopLogService = make(chan signal)
+// 	// setup channels
+// 	sl.data = make(chan logMessage, buffer)
+// 	sl.config = make(chan cfgMessage)
+// 	sl.stopLogService = make(chan signal)
 
-	// setup service state
-	sl.state = running
-}
+// 	// setup service state
+// 	sl.state = running
+// }
 
 // service is the main component of the log service.
 // It listens and handles messages sent to the log service.
@@ -229,10 +230,24 @@ func assembleToString(values []any) string {
 }
 
 // StartService starts the log service.
+// The bufferSize specifies the number of log messages, that can be sent to the log service asynchronously before the service blocks.
 // The log service runs in a dedicated goroutine.
 func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
-		sLog.initialize(bufferSize)
+		// sLog.initialize(bufferSize)
+
+		// setup log handle map
+		sLog.logHandle = make(map[int]map[string]*log.Logger)
+
+		// setup channels
+		sLog.data = make(chan logMessage, bufferSize)
+		sLog.config = make(chan cfgMessage)
+		sLog.stopLogService = make(chan signal)
+
+		// setup service state
+		sLog.state = running
+
+		// start the service
 		go service()
 	} else {
 		panic(sl002e)
