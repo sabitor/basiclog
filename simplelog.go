@@ -133,8 +133,9 @@ func (sl *simpleLog) initialize(buffer int) {
 }
 
 // service is the main component of the log service.
-// Started in a dedicated goroutine, it handles all messages sent to the log service.
-// It can handle the following messages:
+// It listens and handles messages sent to the log service.
+// This service runs in a dedicated goroutine and will be started as part of the log service startup process.
+// It handles the following messages:
 //   * stopLogService - to signal the end of the log service and to stop further processing
 //   * data           - log messages, used to write messages to the assigned log target
 //   * config         - config messages, used to configure how the log service works
@@ -177,7 +178,6 @@ func service() {
 }
 
 // changeLogFile changes the name of the log file.
-// The log service doesn't have to be stopped for this task.
 func (sl *simpleLog) changeLogFile(newLogName string) {
 	// remove all file log handles from the logHandler map which are linked to the old log name
 	delete(sLog.logHandle, file)
@@ -228,7 +228,8 @@ func assembleToString(values []any) string {
 	return msg
 }
 
-// StartService ...
+// StartService starts the log service.
+// The log service runs in a dedicated goroutine.
 func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
 		sLog.initialize(bufferSize)
@@ -238,17 +239,18 @@ func StartService(bufferSize int) {
 	}
 }
 
-// StopService ...
+// StopService stops the log service.
+// Before the log service is stopped, all pending log messages are flushed and resources are released.
 func StopService() {
 	defer close(sLog.data)
 	defer close(sLog.stopLogService)
 
 	if sLog.serviceState() == running {
-		// wait until all messages have been logged by the service
+		// wait until all log messages have been handled by the service
 		for len(sLog.data) > 0 {
 			continue
 		}
-		// all messages are logged - the services can be stopped gracefully
+		// all log messages are logged - the services can be stopped gracefully
 		sLog.stopLogService <- signal{}
 		sLog.fileHandle.Close()
 	} else {
@@ -256,7 +258,7 @@ func StopService() {
 	}
 }
 
-// SetLogName ...
+// SetLogName sets the log file name.
 func SetLogName(logName string) {
 	if sLog.serviceState() == running {
 		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
@@ -270,7 +272,9 @@ func SetLogName(logName string) {
 	}
 }
 
-// ChangeLogName ...
+// ChangeLogName changes the log file name.
+// As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
+// The log service doesn't need to be stopped for this task.
 func ChangeLogName(newLogName string) {
 	if sLog.serviceState() == running {
 		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
@@ -280,7 +284,7 @@ func ChangeLogName(newLogName string) {
 	}
 }
 
-// WriteToStdout ...
+// WriteToStdout writes log messages to stdout.
 func WriteToStdout(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
@@ -290,7 +294,7 @@ func WriteToStdout(prefix string, values ...any) {
 	}
 }
 
-// WriteToFile ...
+// WriteToFile writes log messages to a log file.
 func WriteToFile(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
@@ -300,7 +304,8 @@ func WriteToFile(prefix string, values ...any) {
 	}
 }
 
-// WriteToMulti ...
+// WriteToMulti writes log messages to multiple targets.
+// Currently supported targets are stdout and a log file.
 func WriteToMulti(prefix string, values ...any) {
 	if sLog.serviceState() == running {
 		logRecord := assembleToString(values)
