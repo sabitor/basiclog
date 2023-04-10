@@ -111,7 +111,7 @@ func (sl *simpleLog) fileLog(prefix string) *log.Logger {
 	return sLog.handle(file, prefix)
 }
 
-// multiLog returns a multi log handle.
+// multiLog returns a stdout log handle and a file log handle.
 func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
 }
