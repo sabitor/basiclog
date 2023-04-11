@@ -236,11 +236,11 @@ func StartService(bufferSize int) {
 		sLog.config = make(chan configMessage)
 		sLog.stopLogService = make(chan signal)
 
-		// setup service state
-		sLog.state = running
-
 		// start the log service
 		go service()
+
+		// set service state
+		sLog.state = running
 	} else {
 		panic(sl002e)
 	}
