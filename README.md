@@ -47,19 +47,19 @@ The following log output was generated:
 **Standard out**
 ```
 Start application
-[DEV] First dev-message to MULTI.
-[TEST] First test-message to MULTI.
+[DEV] First message to MULTI.
+[TEST] First message to MULTI.
 Stop application
 ```
 **Log file log1.txt**
 ```
-2023/04/11 13:38:41.369607 [DEV] First dev-message to FILE.
-2023/04/11 13:38:41.369807 [DEV] First dev-message to MULTI.
+2023/04/11 13:38:41.369607 [DEV] First message to FILE.
+2023/04/11 13:38:41.369807 [DEV] First message to MULTI.
 ```
 **Log file log2.txt**
 ```
-2023/04/11 13:38:41.370075 [DEV] Second dev-message to File.
-2023/04/11 13:38:41.370138 [TEST] First test-message to MULTI.
+2023/04/11 13:38:41.370075 [DEV] Second message to File.
+2023/04/11 13:38:41.370138 [TEST] First message to MULTI.
 ```
 
 
