@@ -16,7 +16,7 @@ A log entry in a log file consists of the following format:
 ## How to use simplelog
 Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
 
-**Hint:** If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log service has to be initialized once before writing log messages to the log file.
+**Hint:** If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once before writing log messages to it.
 
 Let's have a look at the following sample application, which uses the simplelog framework:
 ```go
@@ -38,6 +38,24 @@ func main() {
     simplelog.WriteToMulti("[TEST]", "First message to MULTI.")
     simplelog.WriteToStdout("Stop application")
 }
+```
+The following log output was generated:
+**STDOUT**
+```
+Start application
+[DEV] First dev-message to MULTI.
+[TEST] First test-message to MULTI.
+Stop application
+```
+**Log file log1.txt**
+```
+2023/04/11 13:38:41.369607 [DEV] First dev-message to FILE.
+2023/04/11 13:38:41.369807 [DEV] First dev-message to MULTI.
+```
+**Log file log2.txt**
+```
+2023/04/11 13:38:41.370075 [DEV] Second dev-message to File.
+2023/04/11 13:38:41.370138 [TEST] First test-message to MULTI.
 ```
 
 
