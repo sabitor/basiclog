@@ -12,7 +12,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 const lineBreak = "\n"
@@ -76,18 +75,9 @@ type simpleLog struct {
 	state int // to save the current state of the log service repesented by the service bits, e.g. stopped, running, and so on
 }
 
-//  global (package) variables
+// global (package) variables
 var sLog = &simpleLog{}
 var firstFileLogHandler = false
-
-// setLogFile opens a log file.
-func (sl *simpleLog) setLogFile(logName string) {
-	var err error
-	sLog.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-}
 
 // setServiceState sets the state of the log service.
 // The state bits are stopped, running, and so on.
@@ -116,30 +106,30 @@ func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
 	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
 }
 
-// REMOVE
-// initialize is invoked during the startup process of the log service.
-// It allocates resources for different simpleLog attributes and
-// sets the state of the log service to running.
-// func (sl *simpleLog) initialize(buffer int) {
-// 	// setup log handle map
-// 	sl.logHandle = make(map[int]map[string]*log.Logger)
+// setLogFile opens a log file.
+func (sl *simpleLog) setLogFile(logName string) {
+	var err error
+	sLog.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+}
 
-// 	// setup channels
-// 	sl.data = make(chan logMessage, buffer)
-// 	sl.config = make(chan cfgMessage)
-// 	sl.stopLogService = make(chan signal)
+// changeLogFile changes the name of the log file.
+func (sl *simpleLog) changeLogFile(newLogName string) {
+	// remove all file log handles from the logHandler map which are linked to the old log name
+	delete(sLog.logHandle, file)
+	sLog.fileHandle.Close()
+	firstFileLogHandler = false
+	sLog.setLogFile(newLogName)
+}
 
-// 	// setup service state
-// 	sl.state = running
-// }
-
-// service is the main component of the log service.
-// It listens and handles messages sent to the log service.
-// This service runs in a dedicated goroutine and will be started as part of the log service startup process.
+// service receives and handles messages.
+// This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
 // It handles the following messages:
-//   * stopLogService - to signal the end of the log service and to stop further processing
-//   * data           - log messages, used to write messages to the assigned log target
-//   * config         - config messages, used to configure how the log service works
+//   - stopLogService - to signal the end of the log service and to stop further processing
+//   - data           - log messages, used to write messages to the assigned log target
+//   - config         - config messages, used to configure how the log service works
 func service() {
 	for {
 		select {
@@ -170,7 +160,11 @@ func service() {
 		case cfgMsg := <-sLog.config:
 			switch cfgMsg.category {
 			case setlogname:
-				sLog.setLogFile(cfgMsg.data)
+				if sLog.fileHandle == nil {
+					sLog.setLogFile(cfgMsg.data)
+				} else {
+					panic(sl005e)
+				}
 			case changelogname:
 				sLog.changeLogFile(cfgMsg.data)
 			}
@@ -178,16 +172,7 @@ func service() {
 	}
 }
 
-// changeLogFile changes the name of the log file.
-func (sl *simpleLog) changeLogFile(newLogName string) {
-	// remove all file log handles from the logHandler map which are linked to the old log name
-	delete(sLog.logHandle, file)
-	sLog.fileHandle.Close()
-	firstFileLogHandler = false
-	sLog.setLogFile(newLogName)
-}
-
-// handle returns a log handle for a given log target and message prefix.
+// handle returns a log handle for a given combination of log target and message prefix.
 // Each combination of log target and message prefix is assinged its own log handler.
 func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 	// build key for log handler map
@@ -215,7 +200,8 @@ func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 }
 
 // assembleToString joins the variadic function parameters to one result message.
-// The different parameters are separated by space characters.
+// The different parameters are separated by spaces.
+// This helper function is used by the WriteTo functions.
 func assembleToString(values []any) string {
 	valueList := make([]string, len(values))
 	for i, v := range values {
@@ -234,8 +220,6 @@ func assembleToString(values []any) string {
 // The log service runs in a dedicated goroutine.
 func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
-		// sLog.initialize(bufferSize)
-
 		// setup log handle map
 		sLog.logHandle = make(map[int]map[string]*log.Logger)
 
@@ -247,7 +231,7 @@ func StartService(bufferSize int) {
 		// setup service state
 		sLog.state = running
 
-		// start the service
+		// start the log service
 		go service()
 	} else {
 		panic(sl002e)
@@ -276,12 +260,7 @@ func StopService() {
 // SetLogName sets the log file name.
 func SetLogName(logName string) {
 	if sLog.serviceState() == running {
-		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
-		if sLog.fileHandle == nil {
-			sLog.config <- cfgMessage{setlogname, logName}
-		} else {
-			panic(sl005e)
-		}
+		sLog.config <- cfgMessage{setlogname, logName}
 	} else {
 		panic(sl004e)
 	}
@@ -292,7 +271,10 @@ func SetLogName(logName string) {
 // The log service doesn't need to be stopped for this task.
 func ChangeLogName(newLogName string) {
 	if sLog.serviceState() == running {
-		time.Sleep(10 * time.Millisecond) // CHECK: to keep the logical order of goroutine function calls
+		// wait until all log messages have been written to the old log file
+		for len(sLog.data) > 0 {
+			continue
+		}
 		sLog.config <- cfgMessage{changelogname, newLogName}
 	} else {
 		panic(sl004e)
