@@ -10,14 +10,14 @@ A log entry to standard out consists of the following format:
 
 A log entry in a log file consists of the following format:
 ```
-<date of local time zone> <time of the local time zone> <prefix> <log message>
+<date of local time zone> <time of the local time zone> <log message>
 ```
 
 ## How to use simplelog
 Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
 
 **Hint:** 
-1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLogFile* function before log messages can bw written to the log file.
+1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLogFile* function before log messages can be written to the log file.
 2) The log file used by the log service can be changed by calling the *ChangeLogFile* function. The log service does not have to be stopped for this purpose.
 
 Let's have a look at the following sample application, who uses the simplelog framework as an example:
