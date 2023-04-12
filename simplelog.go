@@ -237,9 +237,6 @@ func StartService(bufferSize int) {
 // StopService stops the log service.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 func StopService() {
-	defer close(sLog.data)
-	defer close(sLog.stopLogService)
-
 	if sLog.serviceState() == running {
 		// wait until all log messages have been handled by the service
 		for len(sLog.data) > 0 {
@@ -247,7 +244,14 @@ func StopService() {
 		}
 		// all log messages are logged - the services can be stopped gracefully
 		sLog.stopLogService <- signal{}
+
+		// cleanup
 		sLog.fileHandle.Close()
+		close(sLog.data)
+		close(sLog.config)
+		close(sLog.stopLogService)
+		sLog.logHandle = nil
+		sLog.fileHandle = nil
 	} else {
 		panic(sl003e)
 	}
