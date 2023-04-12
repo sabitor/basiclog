@@ -48,8 +48,7 @@ type signal struct{}
 // A logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
 	target int    // the log target bits, e.g. stdout, file, and so on.
-	prefix string // the log prefix, which will be written in front of the log record
-	record string // the payload of the log message, which will be sent to the log target
+	data   string // the payload of the log message, which will be sent to the log target
 }
 
 // A configMessage represents the config message which will be sent to the log service.
@@ -61,8 +60,8 @@ type configMessage struct {
 // A simpleLog represents an instance of a simple logger.
 type simpleLog struct {
 	// handler
-	fileHandle *os.File                       // the log file handle
-	logHandle  map[int]map[string]*log.Logger // a map which stores for every log target bit a map which stores the log prefix and its assigned log handle
+	fileHandle *os.File            // the file handle of the log file
+	logHandle  map[int]*log.Logger // a map which stores for every log target bit its assigned log handle
 
 	// channels
 	data           chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
@@ -89,19 +88,20 @@ func (sl *simpleLog) serviceState() int {
 	return sl.state
 }
 
-// stdoutLog returns a stdout log handle.
-func (sl *simpleLog) stdoutLog(prefix string) *log.Logger {
-	return sLog.handle(stdout, prefix)
-}
-
-// fileLog returns a file log handle.
-func (sl *simpleLog) fileLog(prefix string) *log.Logger {
-	return sLog.handle(file, prefix)
-}
-
-// multiLog returns a stdout log handle and a file log handle.
-func (sl *simpleLog) multiLog(prefix string) (*log.Logger, *log.Logger) {
-	return sLog.handle(stdout, prefix), sLog.handle(file, prefix)
+// handle returns log handler for a given log target.
+func (sl *simpleLog) handle(target int) (*log.Logger, *log.Logger) {
+	var logHandle1, logHandle2 *log.Logger
+	switch target {
+	case stdout:
+		logHandle1 = sLog.checkBuildHandle(stdout)
+	case file:
+		logHandle1 = sLog.checkBuildHandle(file)
+	case multi:
+		// stdout and file log handler have different properties, thus io.MultiWriter can't be used
+		logHandle1 = sLog.checkBuildHandle(stdout)
+		logHandle2 = sLog.checkBuildHandle(file)
+	}
+	return logHandle1, logHandle2
 }
 
 // openLogFile opens a log file.
@@ -122,40 +122,44 @@ func (sl *simpleLog) changeLogFileName(newLogName string) {
 	sLog.openLogFile(newLogName)
 }
 
-// service receives and handles messages.
+// service represents the log service.
 // This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
 // It handles the following messages:
 //   - logMessage
 //   - configMessage
 //   - signal
 func service() {
+	var stdoutLogHandle, fileLogHandle *log.Logger
+	var logMsg logMessage
+	var cfgMsg configMessage
+
 	for {
 		select {
 		case <-sLog.stopLogService:
 			sLog.setServiceState(stopped)
 			return
-		case logMsg := <-sLog.data:
+		case logMsg = <-sLog.data:
 			switch logMsg.target {
 			case stdout:
-				stdoutLogHandle := sLog.stdoutLog(logMsg.prefix)
-				stdoutLogHandle.Print(logMsg.record)
+				stdoutLogHandle, _ = sLog.handle(stdout)
+				stdoutLogHandle.Print(logMsg.data)
 			case file:
-				fileLogHandle := sLog.fileLog(logMsg.prefix)
+				fileLogHandle, _ = sLog.handle(file)
 				if fileLogHandle != nil {
-					fileLogHandle.Print(logMsg.record)
+					fileLogHandle.Print(logMsg.data)
 				} else {
 					panic(sl001e)
 				}
 			case multi:
-				stdoutLogHandle, fileLogHandle := sLog.multiLog(logMsg.prefix)
-				stdoutLogHandle.Print(logMsg.record)
+				stdoutLogHandle, fileLogHandle = sLog.handle(multi)
+				stdoutLogHandle.Print(logMsg.data)
 				if fileLogHandle != nil {
-					fileLogHandle.Print(logMsg.record)
+					fileLogHandle.Print(logMsg.data)
 				} else {
 					panic(sl001e)
 				}
 			}
-		case cfgMsg := <-sLog.config:
+		case cfgMsg = <-sLog.config:
 			switch cfgMsg.category {
 			case openlog:
 				if sLog.fileHandle == nil {
@@ -170,22 +174,17 @@ func service() {
 	}
 }
 
-// handle returns a log handle for a given combination of log target and message prefix.
-// Each combination of log target and message prefix is assinged its own log handler.
-func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
-	// build key for log handler map
-	if _, outer := sl.logHandle[target]; !outer {
-		// allocate resources for a new log handler target map
-		sl.logHandle[target] = make(map[string]*log.Logger)
-	}
-	if _, inner := sl.logHandle[target][msgPrefix]; !inner {
-		// create a new log handler
+// checkBuildHandle checks if a log handle exists for a specific target. If not, it will be created accordingly.
+// Each log target is assinged its own log handler.
+func (sl *simpleLog) checkBuildHandle(target int) *log.Logger {
+	if _, found := sl.logHandle[target]; !found {
+		// log handler doesn't exists - create it
 		switch target {
 		case stdout:
-			sl.logHandle[stdout][msgPrefix] = log.New(os.Stdout, msgPrefix, 0)
+			sl.logHandle[stdout] = log.New(os.Stdout, "", 0)
 		case file:
 			if sl.fileHandle != nil {
-				sl.logHandle[file][msgPrefix] = log.New(sl.fileHandle, msgPrefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
+				sl.logHandle[file] = log.New(sl.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 				if !firstFileLogHandler {
 					// the first file log event always adds an empty line to the log file
 					sl.fileHandle.WriteString("\n")
@@ -194,33 +193,22 @@ func (sl *simpleLog) handle(target int, msgPrefix string) *log.Logger {
 			}
 		}
 	}
-	return sl.logHandle[target][msgPrefix]
+	return sLog.logHandle[target]
 }
 
-// parseValues parses the variadic function parameters and returns a message prefix and a log record.
-// Thereby, the following scenarios will be considered:
-//   - Only one parameter is specified. In this case, this parameter is used as log record and the prefix is set to an emtpy character.
-//   - Two or more parameter are specified. In this case, the first parameter is the message prefix and the remaining parameters are joined into one log record.
-func parseValues(values []any) (string, string) {
-	var prefix, msg string
-	if len(values) > 1 {
-		valueList := make([]string, len(values)-1)
-		prefix = fmt.Sprint(values[0]) + " "
-		for i, v := range values[1:] {
-			if s, ok := v.(string); ok {
-				// the parameter is already a string; no conversion is required
-				valueList[i] = s
-			} else {
-				// convert parameter into a string
-				valueList[i] = fmt.Sprint(v)
-			}
+// parseValues parses the variadic function parameters, builds a message from them and returns it.
+func parseValues(values []any) string {
+	valueList := make([]string, len(values))
+	for i, v := range values {
+		if s, ok := v.(string); ok {
+			// the parameter is already a string; no conversion is required
+			valueList[i] = s
+		} else {
+			// convert parameter into a string
+			valueList[i] = fmt.Sprint(v)
 		}
-		msg = strings.Join(valueList, " ")
-	} else {
-		msg = fmt.Sprint(values[0])
 	}
-
-	return prefix, msg
+	return strings.Join(valueList, " ")
 }
 
 // StartService starts the log service.
@@ -229,7 +217,7 @@ func parseValues(values []any) (string, string) {
 func StartService(bufferSize int) {
 	if sLog.serviceState() == stopped {
 		// setup log handle map
-		sLog.logHandle = make(map[int]map[string]*log.Logger)
+		sLog.logHandle = make(map[int]*log.Logger)
 
 		// setup channels
 		sLog.data = make(chan logMessage, bufferSize)
@@ -292,8 +280,8 @@ func ChangeLogFile(newLogName string) {
 // WriteToStdout writes a log message to stdout.
 func WriteToStdout(values ...any) {
 	if sLog.serviceState() == running {
-		prefix, logRecord := parseValues(values)
-		sLog.data <- logMessage{stdout, prefix, logRecord}
+		msg := parseValues(values)
+		sLog.data <- logMessage{stdout, msg}
 	} else {
 		panic(sl004e)
 	}
@@ -302,19 +290,19 @@ func WriteToStdout(values ...any) {
 // WriteToFile writes a log message to a log file.
 func WriteToFile(values ...any) {
 	if sLog.serviceState() == running {
-		prefix, logRecord := parseValues(values)
-		sLog.data <- logMessage{file, prefix, logRecord}
+		msg := parseValues(values)
+		sLog.data <- logMessage{file, msg}
 	} else {
 		panic(sl004e)
 	}
 }
 
 // WriteToMulti writes a log message to multiple targets.
-// Currently supported targets are stdout and a log file.
+// Currently supported targets are stdout and file.
 func WriteToMulti(values ...any) {
 	if sLog.serviceState() == running {
-		prefix, logRecord := parseValues(values)
-		sLog.data <- logMessage{multi, prefix, logRecord}
+		msg := parseValues(values)
+		sLog.data <- logMessage{multi, msg}
 	} else {
 		panic(sl004e)
 	}
