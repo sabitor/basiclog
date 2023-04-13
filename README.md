@@ -60,19 +60,20 @@ The following log output was generated:
 **Standard out**
 ```
 Start application
-[DEV] First message to MULTI.
-[TEST] First message to MULTI.
+[MAIN] First message to MULTI.
+Changed log file
+[MAIN] Second message to MULTI.
 Stop application
 ```
 **Log file log1.txt**
 ```
-2023/04/11 13:38:41.369607 [DEV] First message to FILE.
-2023/04/11 13:38:41.369807 [DEV] First message to MULTI.
+2023/04/13 10:20:37.164884 [MAIN] First message to FILE.
+2023/04/13 10:20:37.165094 [MAIN] First message to MULTI.
 ```
 **Log file log2.txt**
 ```
-2023/04/11 13:38:41.370075 [DEV] Second message to File.
-2023/04/11 13:38:41.370138 [TEST] First message to MULTI.
+2023/04/13 10:20:37.165285 [GOROUTINE] Second message to File.
+2023/04/13 10:20:37.165327 [MAIN] Second message to MULTI.
 ```
 
 
