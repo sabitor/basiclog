@@ -24,21 +24,34 @@ Let's have a look at the following sample application, who uses the simplelog fr
 ```go
 package main
 
-import "github.com/sabitor/simplelog"
+import (
+	"sync"
+
+	"github.com/sabitor/simplelog"
+)
 
 func main() {
-    logBuffer := 10 // number of log messages which can be buffered before the log service blocks
-    simplelog.StartService(logBuffer)
-    defer simplelog.StopService()
-    
-    simplelog.WriteToStdout("Start application")
-    simplelog.InitLogFile("log1.txt")
-    simplelog.WriteToFile("[DEV]", "First message to FILE.")
-    simplelog.WriteToMulti("[DEV]", "First message to MULTI.")
-    simplelog.ChangeLogFile("log2.txt")
-    simplelog.WriteToFile("[DEV]", "Second message to File.")
-    simplelog.WriteToMulti("[TEST]", "First message to MULTI.")
-    simplelog.WriteToStdout("Stop application")
+	logBuffer := 10 // number of log messages which can be buffered before the log service blocks
+	simplelog.StartService(logBuffer)
+	defer simplelog.StopService()
+
+	simplelog.WriteToStdout("Start application")
+	simplelog.InitLogFile("log1.txt")
+	simplelog.WriteToFile("[MAIN]", "First message to FILE.")
+	simplelog.WriteToMulti("[MAIN]", "First message to MULTI.")
+	simplelog.ChangeLogFile("log2.txt")
+	simplelog.WriteToStdout("Changed log file")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		simplelog.WriteToFile("[GOROUTINE]", "Second message to File.")
+	}()
+	wg.Wait()
+
+	simplelog.WriteToMulti("[MAIN]", "Second message to MULTI.")
+	simplelog.WriteToStdout("Stop application")
 }
 ```
 
