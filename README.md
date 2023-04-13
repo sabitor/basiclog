@@ -39,6 +39,7 @@ func main() {
 	simplelog.InitLogFile("log1.txt")
 	simplelog.WriteToFile("[MAIN]", "First message to FILE.")
 	simplelog.WriteToMulti("[MAIN]", "First message to MULTI.")
+	
 	simplelog.ChangeLogFile("log2.txt")
 	simplelog.WriteToStdout("Changed log file")
 
