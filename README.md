@@ -26,34 +26,41 @@ Let's take a look at the following example application that shows how to use the
 package main
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/sabitor/simplelog"
 )
 
 func main() {
-	logBuffer := 10 // number of log messages which can be buffered before the log service blocks
-	simplelog.StartService(logBuffer)
-	defer simplelog.StopService()
+    logBuffer := 10 // number of log messages which can be buffered before the log service blocks
+    simplelog.StartService(logBuffer)
+    defer simplelog.StopService()
 
-	simplelog.WriteToStdout("Start application")
-	simplelog.InitLogFile("log1.txt")
-	simplelog.WriteToFile("[MAIN]", "First message to FILE.")
-	simplelog.WriteToMulti("[MAIN]", "First message to MULTI.")
-	
-	simplelog.ChangeLogFile("log2.txt")
-	simplelog.WriteToStdout("Changed log file")
+    log1 := "log1.txt"
+    log2 := "log2.txt"
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-	    defer wg.Done()
-	    simplelog.WriteToFile("[GOROUTINE]", "Second message to File.")
-	}()
-	wg.Wait()
+    simplelog.WriteToStdout(">>> Start application")
+    simplelog.InitLogFile(log1)
+    simplelog.WriteToFile("[MAIN]", "Write", 1, "to FILE.")
+    simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
+    
+    simplelog.ChangeLogFile(log2)
+    simplelog.WriteToStdout("Changed log file to", log2)
 
-	simplelog.WriteToMulti("[MAIN]", "Second message to MULTI.")
-	simplelog.WriteToStdout("Stop application")
+    var wg sync.WaitGroup
+    wg.Add(4)
+    for i := 1; i <= 4; i++ {
+        go func(count int) {
+            defer wg.Done()
+	    prefix := "[GOROUTINE " + strconv.Itoa(count) + "]"
+	    simplelog.WriteToFile(prefix, "Write", count+1, "to FILE.")
+        }(i)
+    }
+    wg.Wait()
+
+    simplelog.WriteToMulti("[MAIN]", "Write", 2, "to MULTI.")
+    simplelog.WriteToStdout("<<< Stop application")
 }
 ```
 
@@ -61,21 +68,24 @@ The following log output was generated:
 
 **Standard out**
 ```
-Start application
-[MAIN] First message to MULTI.
-Changed log file
-[MAIN] Second message to MULTI.
-Stop application
+>>> Start application
+[MAIN] Write 1 to MULTI.
+Changed log file to log2.txt
+[MAIN] Write 2 to MULTI.
+<<< Stop application
 ```
 **Log file log1.txt**
 ```
-2023/04/13 10:20:37.164884 [MAIN] First message to FILE.
-2023/04/13 10:20:37.165094 [MAIN] First message to MULTI.
+2023/04/14 08:49:02.555266 [MAIN] Write 1 to FILE.
+2023/04/14 08:49:02.555332 [MAIN] Write 1 to MULTI.
 ```
 **Log file log2.txt**
 ```
-2023/04/13 10:20:37.165285 [GOROUTINE] Second message to File.
-2023/04/13 10:20:37.165327 [MAIN] Second message to MULTI.
+2023/04/14 08:49:02.555448 [GOROUTINE 4] Write 5 to FILE.
+2023/04/14 08:49:02.555456 [GOROUTINE 1] Write 2 to FILE.
+2023/04/14 08:49:02.555460 [GOROUTINE 3] Write 4 to FILE.
+2023/04/14 08:49:02.555562 [GOROUTINE 2] Write 3 to FILE.
+2023/04/14 08:49:02.555604 [MAIN] Write 2 to MULTI.
 ```
 
 
