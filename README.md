@@ -1,5 +1,6 @@
 # Log framework - simplelog
 simplelog is a log framework with a focus on simplicity, usability and ready to be used seamlessly within goroutines.
+
 It utilizes the log package from the standard library with some advanced features.
 Once started, the simple logger runs as a service and listens for logging requests.
 The simple logger writes log records to either standard out, a log file, or standard out and a log file simultaneously (multi log).
