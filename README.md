@@ -21,7 +21,7 @@ Using the log framework is pretty easy. After the log service has been started o
 1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLogFile* function before log messages can be written to the log file.
 2) The log file used by the log service can be changed by calling the *ChangeLogFile* function. The log service does not have to be stopped for this purpose.
 
-Let's have a look at the following sample application, who uses the simplelog framework as an example:
+Let's take a look at the following example application that shows how to use the simplelog framework:
 ```go
 package main
 
