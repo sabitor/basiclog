@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
 
 // message catalog
@@ -73,8 +74,11 @@ type simpleLog struct {
 }
 
 // global (package) variables
-var sLog = &simpleLog{}
-var firstFileLogHandler = false
+var (
+	firstFileLogHandler = false
+	mtx                 sync.Mutex
+	sLog                = &simpleLog{}
+)
 
 // setServiceState sets the state of the log service.
 // The state bits are stopped, running, and so on.
@@ -213,8 +217,10 @@ func parseValues(values []any) string {
 
 // StartService starts the log service.
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
-// The log service runs in a dedicated goroutine.
+// The log service runs in its own goroutine.
 func StartService(bufferSize int) {
+	mtx.Lock()
+	defer mtx.Unlock()
 	if sLog.serviceState() == stopped {
 		// setup log handle map
 		sLog.logHandle = make(map[int]*log.Logger)
