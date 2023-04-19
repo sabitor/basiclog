@@ -15,6 +15,7 @@ func Test_StartService(t *testing.T) {
 		t.Error("Expected state", running, ", but got ", s)
 	} else {
 		sLog.stopLogService <- signal{}
+		sLog.state = stopped
 	}
 }
 
@@ -25,6 +26,7 @@ func Test_StopService(t *testing.T) {
 	if s := sLog.serviceState(); s != stopped {
 		t.Error("Expected state", stopped, ", but got ", s)
 		sLog.stopLogService <- signal{}
+		sLog.state = stopped
 	}
 }
 
