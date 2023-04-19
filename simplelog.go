@@ -239,15 +239,15 @@ func StopService() {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if sLog.serviceState() == running {
-		// wait until all log messages have been handled by the service
+		// wait until all log messages have been written
 		for len(sLog.data) > 0 {
 			continue
 		}
-		// all log messages are logged - the services can be stopped gracefully
-		sLog.stopLogService <- signal{}
-
 		// set service state
 		sLog.state = stopped
+
+		// no pending log messages - the services can be stopped gracefully
+		sLog.stopLogService <- signal{}
 
 		// cleanup
 		sLog.fileHandle.Close()
@@ -263,6 +263,8 @@ func StopService() {
 
 // InitLogFile initializes the log file.
 func InitLogFile(logName string) {
+	mtx.Lock()
+	defer mtx.Unlock()
 	if sLog.serviceState() == running {
 		sLog.config <- configMessage{openlog, logName}
 	} else {
@@ -274,11 +276,14 @@ func InitLogFile(logName string) {
 // As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
 // The log service doesn't need to be stopped for this task.
 func ChangeLogFile(newLogName string) {
+	mtx.Lock()
+	defer mtx.Unlock()
 	if sLog.serviceState() == running {
 		// wait until all log messages have been written to the old log file
 		for len(sLog.data) > 0 {
 			continue
 		}
+		// no pending log messages - log file name can be changed
 		sLog.config <- configMessage{changelogname, newLogName}
 	} else {
 		panic(sl004e)
