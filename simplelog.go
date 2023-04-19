@@ -80,12 +80,6 @@ var (
 	sLog                = &simpleLog{}
 )
 
-// setServiceState sets the state of the log service.
-// The state bits are stopped, running, and so on.
-func (sl *simpleLog) setServiceState(newState int) {
-	sl.state = newState
-}
-
 // serviceState returns the state of the log service.
 // The returned state bits are stopped, running, and so on.
 func (sl *simpleLog) serviceState() int {
@@ -140,7 +134,6 @@ func service() {
 	for {
 		select {
 		case <-sLog.stopLogService:
-			sLog.setServiceState(stopped)
 			return
 		case logMsg = <-sLog.data:
 			switch logMsg.target {
@@ -243,6 +236,8 @@ func StartService(bufferSize int) {
 // StopService stops the log service.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 func StopService() {
+	mtx.Lock()
+	defer mtx.Unlock()
 	if sLog.serviceState() == running {
 		// wait until all log messages have been handled by the service
 		for len(sLog.data) > 0 {
@@ -250,6 +245,9 @@ func StopService() {
 		}
 		// all log messages are logged - the services can be stopped gracefully
 		sLog.stopLogService <- signal{}
+
+		// set service state
+		sLog.state = stopped
 
 		// cleanup
 		sLog.fileHandle.Close()
