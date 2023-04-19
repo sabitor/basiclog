@@ -38,14 +38,13 @@ func main() {
     simplelog.StartService(logBuffer)
     defer simplelog.StopService()
 
-    log1 := "log1.txt"
-    log2 := "log2.txt"
-
     simplelog.WriteToStdout(">>> Start application")
+    log1 := "log1.txt"
     simplelog.InitLogFile(log1)
     simplelog.WriteToFile("[MAIN]", "Write", 1, "to FILE.")
     simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
     
+    log2 := "log2.txt"
     simplelog.ChangeLogFile(log2)
     simplelog.WriteToStdout("Changed log file to", log2)
 
