@@ -45,7 +45,7 @@ func main() {
     simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
     
     log2 := "log2.txt"
-    simplelog.ChangeLogFile(log2)
+    simplelog.ChangeLogName(log2)
     simplelog.WriteToStdout("Changed log file to", log2)
 
     var wg sync.WaitGroup
