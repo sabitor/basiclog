@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 // message catalog
@@ -33,8 +34,8 @@ const (
 
 // configuration categories
 const (
-	openlog       = iota // open a log file
-	changelogname        // change the log file name
+	openlog   = iota // open a log file
+	changelog        // change the log file name
 )
 
 // service states
@@ -43,8 +44,8 @@ const (
 	running        // indicator of a running (active) log service
 )
 
-// A signal will be used as a trigger to handle certain tasks by the log service, whereby no payload data has to be sent the recipient.
-type signal struct{}
+// semaphore to signal the log service
+type semaphore struct{}
 
 // A logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
@@ -65,9 +66,9 @@ type simpleLog struct {
 	logHandle  map[int]*log.Logger // a map which stores for every log target bit its assigned log handle
 
 	// channels
-	data           chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
-	config         chan configMessage // the channel for sending config messages to the log service
-	stopLogService chan signal        // the channel for sending a stop message to the log service
+	data        chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
+	config      chan configMessage // the channel for sending config messages to the log service
+	stopService chan semaphore     // the channel for sending a stop signal to the log service
 
 	// service
 	state int // to save the current state of the log service repesented by the service bits, e.g. stopped, running, and so on
@@ -125,7 +126,7 @@ func (sl *simpleLog) changeLogFileName(newLogName string) {
 // It handles the following messages:
 //   - logMessage
 //   - configMessage
-//   - signal
+//   - semaphore
 func service() {
 	var stdoutLogHandle, fileLogHandle *log.Logger
 	var logMsg logMessage
@@ -133,7 +134,7 @@ func service() {
 
 	for {
 		select {
-		case <-sLog.stopLogService:
+		case <-sLog.stopService:
 			return
 		case logMsg = <-sLog.data:
 			switch logMsg.target {
@@ -164,7 +165,7 @@ func service() {
 				} else {
 					panic(sl005e)
 				}
-			case changelogname:
+			case changelog:
 				sLog.changeLogFileName(cfgMsg.data)
 			}
 		}
@@ -221,7 +222,7 @@ func StartService(bufferSize int) {
 		// setup channels
 		sLog.data = make(chan logMessage, bufferSize)
 		sLog.config = make(chan configMessage)
-		sLog.stopLogService = make(chan signal)
+		sLog.stopService = make(chan semaphore)
 
 		// start the log service
 		go service()
@@ -239,21 +240,22 @@ func StopService() {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if sLog.serviceState() == running {
-		// wait until all log messages have been written
-		for len(sLog.data) > 0 {
-			continue
-		}
 		// set service state
 		sLog.state = stopped
 
+		// wait until the data channel has been drained
+		for len(sLog.data) > 0 {
+			time.Sleep(time.Millisecond)
+		}
+
 		// no pending log messages - the services can be stopped gracefully
-		sLog.stopLogService <- signal{}
+		sLog.stopService <- semaphore{}
 
 		// cleanup
 		sLog.fileHandle.Close()
 		close(sLog.data)
 		close(sLog.config)
-		close(sLog.stopLogService)
+		close(sLog.stopService)
 		sLog.logHandle = nil
 		sLog.fileHandle = nil
 	} else {
@@ -272,19 +274,20 @@ func InitLogFile(logName string) {
 	}
 }
 
-// ChangeLogFile changes the log file name.
+// ChangeLogName changes the log file name.
 // As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
 // The log service doesn't need to be stopped for this task.
-func ChangeLogFile(newLogName string) {
+func ChangeLogName(newLogName string) {
 	mtx.Lock()
 	defer mtx.Unlock()
 	if sLog.serviceState() == running {
-		// wait until all log messages have been written to the old log file
+		// wait until the data channel has been drained
 		for len(sLog.data) > 0 {
-			continue
+			time.Sleep(time.Millisecond)
 		}
-		// no pending log messages - log file name can be changed
-		sLog.config <- configMessage{changelogname, newLogName}
+
+		// no pending log messages - log file name can be changed gracefully
+		sLog.config <- configMessage{changelog, newLogName}
 	} else {
 		panic(sl004e)
 	}
