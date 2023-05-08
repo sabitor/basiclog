@@ -175,9 +175,9 @@ func (sl *simpleLog) writeMessage(logMsg logMessage) {
 	}
 }
 
-// flushDataChan writes(flushes) a given number of messages to a dedicated target.
+// flushData writes(flushes) a given number of log messages to a dedicated target.
 // This is done in a FIFO manner (buffered channels in Go are always FIFO)
-func (sl *simpleLog) flushDataChan(numMessages int) {
+func (sl *simpleLog) flushData(numMessages int) {
 	for numMessages > 0 {
 		sl.writeMessage(<-sl.data)
 		numMessages--
