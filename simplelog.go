@@ -13,16 +13,14 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 )
 
 // message catalog
 const (
-	sl001e = "log file not initialized"
-	sl002e = "log service was already started"
-	sl003e = "log service is not running"
-	sl004e = "log service has not been started"
-	sl005e = "log file name already set"
+	m001 = "log file not initialized"
+	m002 = "log service was already started"
+	m003 = "log service is not running"
+	m004 = "log service has not been started"
 )
 
 // log targets
@@ -38,14 +36,13 @@ const (
 	changelog        // change the log file name
 )
 
-// service states
+// log service states
 const (
 	stopped = iota // indicator of a stopped log service
 	running        // indicator of a running (active) log service
-	suspended
 )
 
-// semaphore to signal the log service
+// semaphore to confirm actions across channels
 type semaphore struct{}
 
 // A logMessage represents the log message which will be sent to the log service.
@@ -62,20 +59,16 @@ type configMessage struct {
 
 // simpleLog is a representation of a simple logger instance.
 type simpleLog struct {
-	// handler
 	fileHandle *os.File            // the file handle of the log file
 	logHandle  map[int]*log.Logger // a map which stores for every log target its assigned log handle
 
-	// channels
 	data   chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
 	config chan configMessage // the channel for sending config messages to the log service
 	stop   chan semaphore     // the channel for sending a stop signal to the log service
 	done   chan semaphore     // the channel for sending a done signal to the caller
 
-	// service
-	state int // to save the current state of the log service repesented by the service bits, e.g. stopped, running, and so on
-
-	mtx sync.Mutex
+	state int // represents the state of the log service
+	mtx   sync.Mutex
 }
 
 // global (package) variables
@@ -83,8 +76,7 @@ var (
 	sLog = &simpleLog{}
 )
 
-// serviceState returns the state of the log service.
-// The returned state bits are stopped, running, and so on.
+// serviceIsActive checks whether the log service is active.
 func (sl *simpleLog) serviceState() int {
 	return sl.state
 }
@@ -105,8 +97,8 @@ func (sl *simpleLog) handle(target int) (*log.Logger, *log.Logger) {
 	return logHandle1, logHandle2
 }
 
-// openLogFile opens a log file.
-func (sl *simpleLog) openLogFile(logName string) {
+// initLogFile creates and opens the log file.
+func (sl *simpleLog) initLogFile(logName string) {
 	var err error
 	sLog.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -119,7 +111,7 @@ func (sl *simpleLog) changeLogFileName(newLogName string) {
 	// remove all file log handles from the logHandler map which are linked to the old log name
 	delete(sLog.logHandle, file)
 	sLog.fileHandle.Close()
-	sLog.openLogFile(newLogName)
+	sLog.initLogFile(newLogName)
 }
 
 // service represents the log service.
@@ -129,27 +121,27 @@ func (sl *simpleLog) changeLogFileName(newLogName string) {
 //   - config
 //   - stop
 func (sl *simpleLog) service() {
+	var logMsg logMessage
+	var cfgMsg configMessage
+
 	for {
 		select {
 		case <-sLog.stop:
-			// flush data channel
-			for logMsg := range sLog.data {
-				writeMessage(logMsg)
-			}
+			// Write all messages which are still in the data channel and have not been written yet.
+			flushDataChan(len(sLog.data))
 			sLog.done <- semaphore{}
 			return
-		case logMsg := <-sLog.data:
-			time.Sleep(1 * time.Millisecond)
+		case logMsg = <-sLog.data:
 			writeMessage(logMsg)
-		case cfgMsg := <-sLog.config:
+		case cfgMsg = <-sLog.config:
 			switch cfgMsg.category {
 			case initlog:
-				if sLog.fileHandle == nil {
-					sLog.openLogFile(cfgMsg.data)
-				} else {
-					panic(sl005e)
-				}
+				sLog.initLogFile(cfgMsg.data)
+				sLog.done <- semaphore{}
 			case changelog:
+				// Write all messages to the old log file, which were already sent to the data channel before the change log name was triggered.
+				flushDataChan(len(sLog.data))
+				// Change the log file name.
 				sLog.changeLogFileName(cfgMsg.data)
 				sLog.done <- semaphore{}
 			}
@@ -170,7 +162,7 @@ func writeMessage(logMsg logMessage) {
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
 		} else {
-			panic(sl001e)
+			panic(m001)
 		}
 	case multi:
 		stdoutLogHandle, fileLogHandle = sLog.handle(multi)
@@ -178,8 +170,18 @@ func writeMessage(logMsg logMessage) {
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
 		} else {
-			panic(sl001e)
+			panic(m001)
 		}
+	}
+}
+
+// flushDataChan writes(flushes) a given number of messages to a dedicated target.
+// This is done in a FIFO manner (buffered channels in Go are always FIFO)
+func flushDataChan(numMessages int) {
+	for numMessages > 0 {
+		fmt.Println("Flush")
+		writeMessage(<-sLog.data)
+		numMessages--
 	}
 }
 
@@ -233,11 +235,9 @@ func StartService(bufferSize int) {
 
 		// start the log service
 		go sLog.service()
-
-		// set service state
 		sLog.state = running
 	} else {
-		panic(sl002e)
+		panic(m002)
 	}
 }
 
@@ -247,25 +247,21 @@ func StopService() {
 	sLog.mtx.Lock()
 	defer sLog.mtx.Unlock()
 	if sLog.serviceState() == running {
-		// set service state
-		sLog.state = stopped
-
-		// close the data channel
-		close(sLog.data)
 		// stop the log service
+		sLog.state = stopped
 		sLog.stop <- semaphore{}
-		// log service has been stopped gracefully
 		<-sLog.done
 
 		// cleanup
 		sLog.fileHandle.Close()
+		close(sLog.data)
 		close(sLog.config)
 		close(sLog.stop)
 		close(sLog.done)
 		sLog.logHandle = nil
 		sLog.fileHandle = nil
 	} else {
-		panic(sl003e)
+		panic(m003)
 	}
 }
 
@@ -274,9 +270,11 @@ func InitLogFile(logName string) {
 	sLog.mtx.Lock()
 	defer sLog.mtx.Unlock()
 	if sLog.serviceState() == running {
+		// initialize the log file
 		sLog.config <- configMessage{initlog, logName}
+		<-sLog.done
 	} else {
-		panic(sl004e)
+		panic(m004)
 	}
 }
 
@@ -287,18 +285,11 @@ func ChangeLogName(newLogName string) {
 	sLog.mtx.Lock()
 	defer sLog.mtx.Unlock()
 	if sLog.serviceState() == running {
-		// set service state
-		sLog.state = suspended
-
-		// wait until the data channel has been drained
-		for len(sLog.data) > 0 {
-			time.Sleep(time.Millisecond)
-		}
-
-		// no pending log messages - log file name can be changed gracefully
+		// change the log name
 		sLog.config <- configMessage{changelog, newLogName}
+		<-sLog.done
 	} else {
-		panic(sl004e)
+		panic(m004)
 	}
 }
 
@@ -310,7 +301,7 @@ func WriteToStdout(values ...any) {
 		msg := parseValues(values)
 		sLog.data <- logMessage{stdout, msg}
 	} else {
-		panic(sl004e)
+		panic(m004)
 	}
 }
 
@@ -322,7 +313,7 @@ func WriteToFile(values ...any) {
 		msg := parseValues(values)
 		sLog.data <- logMessage{file, msg}
 	} else {
-		panic(sl004e)
+		panic(m004)
 	}
 }
 
@@ -335,6 +326,6 @@ func WriteToMulti(values ...any) {
 		msg := parseValues(values)
 		sLog.data <- logMessage{multi, msg}
 	} else {
-		panic(sl004e)
+		panic(m004)
 	}
 }
