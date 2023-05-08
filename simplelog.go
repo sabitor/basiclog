@@ -81,18 +81,18 @@ func (sl *simpleLog) serviceState() int {
 	return sl.state
 }
 
-// handle returns log handler for a given log target.
-func (sl *simpleLog) handle(target int) (*log.Logger, *log.Logger) {
+// instance returns log handler instances for a given log target.
+func (sl *simpleLog) instance(target int) (*log.Logger, *log.Logger) {
 	var logHandle1, logHandle2 *log.Logger
 	switch target {
 	case stdout:
-		logHandle1 = sLog.checkBuildHandle(stdout)
+		logHandle1 = sLog.createSimpleLog(stdout)
 	case file:
-		logHandle1 = sLog.checkBuildHandle(file)
+		logHandle1 = sLog.createSimpleLog(file)
 	case multi:
 		// stdout and file log handler have different properties, thus io.MultiWriter can't be used
-		logHandle1 = sLog.checkBuildHandle(stdout)
-		logHandle2 = sLog.checkBuildHandle(file)
+		logHandle1 = sLog.createSimpleLog(stdout)
+		logHandle2 = sLog.createSimpleLog(file)
 	}
 	return logHandle1, logHandle2
 }
@@ -126,46 +126,46 @@ func (sl *simpleLog) service() {
 
 	for {
 		select {
-		case <-sLog.stop:
-			// Write all messages which are still in the data channel and have not been written yet.
-			flushDataChan(len(sLog.data))
-			sLog.done <- semaphore{}
+		case <-sl.stop:
+			// write all messages which are still in the data channel and have not been written yet
+			sl.flushDataChan(len(sl.data))
+			sl.done <- semaphore{}
 			return
-		case logMsg = <-sLog.data:
-			writeMessage(logMsg)
-		case cfgMsg = <-sLog.config:
+		case logMsg = <-sl.data:
+			sl.writeMessage(logMsg)
+		case cfgMsg = <-sl.config:
 			switch cfgMsg.category {
 			case initlog:
-				sLog.initLogFile(cfgMsg.data)
-				sLog.done <- semaphore{}
+				sl.initLogFile(cfgMsg.data)
+				sl.done <- semaphore{}
 			case changelog:
-				// Write all messages to the old log file, which were already sent to the data channel before the change log name was triggered.
-				flushDataChan(len(sLog.data))
-				// Change the log file name.
-				sLog.changeLogFileName(cfgMsg.data)
-				sLog.done <- semaphore{}
+				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
+				sl.flushDataChan(len(sl.data))
+				// change the log file name
+				sl.changeLogFileName(cfgMsg.data)
+				sl.done <- semaphore{}
 			}
 		}
 	}
 }
 
 // writeMessage writes data of log messages to a dedicated target.
-func writeMessage(logMsg logMessage) {
+func (sl *simpleLog) writeMessage(logMsg logMessage) {
 	var stdoutLogHandle, fileLogHandle *log.Logger
 
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ = sLog.handle(stdout)
+		stdoutLogHandle, _ = sLog.instance(stdout)
 		stdoutLogHandle.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ = sLog.handle(file)
+		fileLogHandle, _ = sLog.instance(file)
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
 		} else {
 			panic(m001)
 		}
 	case multi:
-		stdoutLogHandle, fileLogHandle = sLog.handle(multi)
+		stdoutLogHandle, fileLogHandle = sLog.instance(multi)
 		stdoutLogHandle.Print(logMsg.data)
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
@@ -177,17 +177,16 @@ func writeMessage(logMsg logMessage) {
 
 // flushDataChan writes(flushes) a given number of messages to a dedicated target.
 // This is done in a FIFO manner (buffered channels in Go are always FIFO)
-func flushDataChan(numMessages int) {
+func (sl *simpleLog) flushDataChan(numMessages int) {
 	for numMessages > 0 {
-		fmt.Println("Flush")
-		writeMessage(<-sLog.data)
+		sl.writeMessage(<-sl.data)
 		numMessages--
 	}
 }
 
-// checkBuildHandle checks if a log handle exists for a specific target. If not, it will be created accordingly.
+// createSimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
 // Each log target is assinged its own log handler.
-func (sl *simpleLog) checkBuildHandle(target int) *log.Logger {
+func (sl *simpleLog) createSimpleLog(target int) *log.Logger {
 	if _, found := sl.logHandle[target]; !found {
 		// log handler doesn't exists - create it
 		switch target {
