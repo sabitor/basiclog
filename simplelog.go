@@ -242,7 +242,7 @@ func Startup(bufferSize int) {
 	}
 }
 
-// Shutdown stops the log service.
+// Shutdown stops the log service and does some cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 func Shutdown() {
 	sLog.mtx.Lock()
