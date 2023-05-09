@@ -202,7 +202,7 @@ func (sl *simpleLog) createSimpleLog(target int) *log.Logger {
 			}
 		}
 	}
-	return sLog.logHandle[target]
+	return sl.logHandle[target]
 }
 
 // parseValues parses the variadic function parameters, builds a message from them and returns it.
