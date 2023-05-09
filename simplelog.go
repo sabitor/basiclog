@@ -128,7 +128,7 @@ func (sl *simpleLog) service() {
 		select {
 		case <-sl.stop:
 			// write all messages which are still in the data channel and have not been written yet
-			sl.flushDataChan(len(sl.data))
+			sl.flushData(len(sl.data))
 			sl.done <- semaphore{}
 			return
 		case logMsg = <-sl.data:
@@ -140,7 +140,7 @@ func (sl *simpleLog) service() {
 				sl.done <- semaphore{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
-				sl.flushDataChan(len(sl.data))
+				sl.flushData(len(sl.data))
 				// change the log file name
 				sl.changeLogFileName(cfgMsg.data)
 				sl.done <- semaphore{}
@@ -175,9 +175,11 @@ func (sl *simpleLog) writeMessage(logMsg logMessage) {
 	}
 }
 
-// flushDataChan writes(flushes) a given number of messages to a dedicated target.
-// This is done in a FIFO manner (buffered channels in Go are always FIFO)
-func (sl *simpleLog) flushDataChan(numMessages int) {
+// flushData flushes(writes) a number of messages to a dedicated target.
+// Messages will be transfered between worker goroutines and the service goroutine
+// by using a buffered channel.
+// The messages are sent using the FIFO approach (buffered channels in Go are always FIFO).
+func (sl *simpleLog) flushMessages(numMessages int) {
 	for numMessages > 0 {
 		sl.writeMessage(<-sl.data)
 		numMessages--
