@@ -128,7 +128,7 @@ func (sl *simpleLog) service() {
 		select {
 		case <-sl.stop:
 			// write all messages which are still in the data channel and have not been written yet
-			sl.flushData(len(sl.data))
+			sl.flushMessages(len(sl.data))
 			sl.done <- semaphore{}
 			return
 		case logMsg = <-sl.data:
@@ -140,7 +140,7 @@ func (sl *simpleLog) service() {
 				sl.done <- semaphore{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
-				sl.flushData(len(sl.data))
+				sl.flushMessages(len(sl.data))
 				// change the log file name
 				sl.changeLogFileName(cfgMsg.data)
 				sl.done <- semaphore{}
