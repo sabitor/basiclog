@@ -220,10 +220,10 @@ func parseValues(values []any) string {
 	return strings.Join(valueList, " ")
 }
 
-// StartService starts the log service.
+// New starts the log service.
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 // The log service runs in its own goroutine.
-func StartService(bufferSize int) {
+func New(bufferSize int) {
 	if sLog.serviceState() == stopped {
 		// setup log handle map
 		sLog.logHandle = make(map[int]*log.Logger)
@@ -242,9 +242,9 @@ func StartService(bufferSize int) {
 	}
 }
 
-// StopService stops the log service.
+// Stop stops the log service.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
-func StopService() {
+func Stop() {
 	sLog.mtx.Lock()
 	defer sLog.mtx.Unlock()
 	if sLog.serviceState() == running {
