@@ -155,17 +155,17 @@ func (sl *simpleLog) writeMessage(logMsg logMessage) {
 
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ = sLog.instance(stdout)
+		stdoutLogHandle, _ = sl.instance(stdout)
 		stdoutLogHandle.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ = sLog.instance(file)
+		fileLogHandle, _ = sl.instance(file)
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
 		} else {
 			panic(m001)
 		}
 	case multi:
-		stdoutLogHandle, fileLogHandle = sLog.instance(multi)
+		stdoutLogHandle, fileLogHandle = sl.instance(multi)
 		stdoutLogHandle.Print(logMsg.data)
 		if fileLogHandle != nil {
 			fileLogHandle.Print(logMsg.data)
