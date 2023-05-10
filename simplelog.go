@@ -175,7 +175,7 @@ func (sl *simpleLog) writeMessage(logMsg logMessage) {
 	}
 }
 
-// flushData flushes(writes) a number of messages to a dedicated target.
+// flushMessages flushes(writes) a number of messages to a dedicated target.
 // Messages will be transfered between worker goroutines and the service goroutine
 // by using a buffered channel.
 // The messages are sent using the FIFO approach (buffered channels in Go are always FIFO).
