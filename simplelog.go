@@ -65,7 +65,7 @@ type service struct {
 	mtx    sync.Mutex
 }
 
-// simplelog instance
+// global service instance
 var s = &service{}
 
 // isActive checks whether the log service is active.
@@ -73,6 +73,7 @@ func (s *service) isActive() bool {
 	return s.active
 }
 
+// TODO - still required, naming
 // instance returns log handler instances for a given log target.
 func (s *service) instance(target int) (*log.Logger, *log.Logger) {
 	var log1, log2 *log.Logger
@@ -87,6 +88,24 @@ func (s *service) instance(target int) (*log.Logger, *log.Logger) {
 		log2 = s.createsimpleLog(file)
 	}
 	return log1, log2
+}
+
+// TODO - still required
+// createsimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
+// Each log target is assinged its own log handler.
+func (s *service) createsimpleLog(target int) *log.Logger {
+	if _, found := s.logHandle[target]; !found {
+		// log handler doesn't exists - create it
+		switch target {
+		case stdout:
+			s.logHandle[stdout] = log.New(os.Stdout, "", 0)
+		case file:
+			s.logHandle[file] = log.New(s.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+			// the first 'file' log event always adds an empty line to the log file
+			s.fileHandle.WriteString("\n")
+		}
+	}
+	return s.logHandle[target]
 }
 
 // setupLogFile creates and opens the log file.
@@ -143,17 +162,15 @@ func (s *service) service() {
 
 // writeMessage writes data of log messages to a dedicated target.
 func (s *service) writeMessage(logMsg logMessage) {
-	var stdoutLogHandle, fileLogHandle *log.Logger
-
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ = s.instance(stdout)
+		stdoutLogHandle, _ := s.instance(stdout)
 		stdoutLogHandle.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ = s.instance(file)
+		fileLogHandle, _ := s.instance(file)
 		fileLogHandle.Print(logMsg.data)
 	case multi:
-		stdoutLogHandle, fileLogHandle = s.instance(multi)
+		stdoutLogHandle, fileLogHandle := s.instance(multi)
 		stdoutLogHandle.Print(logMsg.data)
 		fileLogHandle.Print(logMsg.data)
 	}
@@ -167,25 +184,6 @@ func (s *service) flushMessages(numMessages int) {
 		s.writeMessage(<-s.data)
 		numMessages--
 	}
-}
-
-// createsimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
-// Each log target is assinged its own log handler.
-func (s *service) createsimpleLog(target int) *log.Logger {
-	if _, found := s.logHandle[target]; !found {
-		// log handler doesn't exists - create it
-		switch target {
-		case stdout:
-			s.logHandle[stdout] = log.New(os.Stdout, "", 0)
-		case file:
-			if s.fileHandle != nil {
-				s.logHandle[file] = log.New(s.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-				// the first file log event always adds an empty line to the log file
-				s.fileHandle.WriteString("\n")
-			}
-		}
-	}
-	return s.logHandle[target]
 }
 
 // parseValues parses the variadic function parameters, builds a message from them and returns it.
