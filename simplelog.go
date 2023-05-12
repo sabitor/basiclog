@@ -53,9 +53,6 @@ type configMessage struct {
 
 // service is a configuration to handle simple log requests.
 type service struct {
-	fileHandle *os.File            // the file handle of the log file
-	logHandle  map[int]*log.Logger // a map which stores for every log target its assigned log handle
-
 	data   chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
 	config chan configMessage // the channel for sending config messages to the log service
 	stop   chan signal        // the channel for sending a stop signal to the log service
@@ -63,6 +60,13 @@ type service struct {
 
 	active bool // indicator whether the log service was started
 	mtx    sync.Mutex
+
+	sim simpleLog
+}
+
+type simpleLog struct {
+	fileHandle *os.File            // the file handle of the log file
+	logHandle  map[int]*log.Logger // a map which stores for every log target its assigned log handle
 }
 
 // global service instance
@@ -75,7 +79,7 @@ func (s *service) isActive() bool {
 
 // TODO - still required, naming
 // instance returns log handler instances for a given log target.
-func (s *service) instance(target int) (*log.Logger, *log.Logger) {
+func (s *simpleLog) instance(target int) (*log.Logger, *log.Logger) {
 	var log1, log2 *log.Logger
 	switch target {
 	case stdout:
@@ -93,7 +97,7 @@ func (s *service) instance(target int) (*log.Logger, *log.Logger) {
 // TODO - still required
 // createsimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
 // Each log target is assinged its own log handler.
-func (s *service) createsimpleLog(target int) *log.Logger {
+func (s *simpleLog) createsimpleLog(target int) *log.Logger {
 	if _, found := s.logHandle[target]; !found {
 		// log handler doesn't exists - create it
 		switch target {
@@ -109,7 +113,7 @@ func (s *service) createsimpleLog(target int) *log.Logger {
 }
 
 // setupLogFile creates and opens the log file.
-func (s *service) setupLogFile(logName string) {
+func (s *simpleLog) setupLogFile(logName string) {
 	var err error
 	s.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -118,7 +122,7 @@ func (s *service) setupLogFile(logName string) {
 }
 
 // changeLogFileName changes the name of the log file.
-func (s *service) changeLogFileName(newLogName string) {
+func (s *simpleLog) changeLogFileName(newLogName string) {
 	// remove all file log handles from the logHandler map which are linked to the old log name
 	delete(s.logHandle, file)
 	s.fileHandle.Close()
@@ -147,13 +151,13 @@ func (s *service) service() {
 		case cfgMsg = <-s.config:
 			switch cfgMsg.category {
 			case initlog:
-				s.setupLogFile(cfgMsg.data)
+				s.sim.setupLogFile(cfgMsg.data)
 				s.done <- signal{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
 				s.flushMessages(len(s.data))
 				// change the log file name
-				s.changeLogFileName(cfgMsg.data)
+				s.sim.changeLogFileName(cfgMsg.data)
 				s.done <- signal{}
 			}
 		}
@@ -164,13 +168,13 @@ func (s *service) service() {
 func (s *service) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ := s.instance(stdout)
+		stdoutLogHandle, _ := s.sim.instance(stdout)
 		stdoutLogHandle.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ := s.instance(file)
+		fileLogHandle, _ := s.sim.instance(file)
 		fileLogHandle.Print(logMsg.data)
 	case multi:
-		stdoutLogHandle, fileLogHandle := s.instance(multi)
+		stdoutLogHandle, fileLogHandle := s.sim.instance(multi)
 		stdoutLogHandle.Print(logMsg.data)
 		fileLogHandle.Print(logMsg.data)
 	}
@@ -211,7 +215,7 @@ func Startup(bufferSize int) {
 func (s *service) startup(bufferSize int) {
 	if !s.isActive() {
 		// setup log handle map
-		s.logHandle = make(map[int]*log.Logger)
+		s.sim.logHandle = make(map[int]*log.Logger)
 
 		// setup channels
 		s.data = make(chan logMessage, bufferSize)
@@ -244,13 +248,13 @@ func (s *service) shutdown() {
 		<-s.done
 
 		// cleanup
-		s.fileHandle.Close()
+		// s.fileHandle.Close()
 		close(s.data)
 		close(s.config)
 		close(s.stop)
 		close(s.done)
-		s.logHandle = nil
-		s.fileHandle = nil
+		// s.logHandle = nil
+		// s.fileHandle = nil
 	} else {
 		panic(m003)
 	}
@@ -316,7 +320,7 @@ func (s *service) writeToFile(values ...any) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	if s.isActive() {
-		if s.fileHandle == nil {
+		if s.sim.fileHandle == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
@@ -336,7 +340,7 @@ func (s *service) writeToMulti(values ...any) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	if s.isActive() {
-		if s.fileHandle == nil {
+		if s.sim.fileHandle == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
