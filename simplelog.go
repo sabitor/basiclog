@@ -58,10 +58,10 @@ type service struct {
 	stop   chan signal        // the channel for sending a stop signal to the log service
 	done   chan signal        // the channel for sending a done signal to the caller
 
-	active bool // indicator whether the log service was started
-	mtx    sync.Mutex
+	active bool       // indicator whether the log service was started
+	mtx    sync.Mutex // mutex to ensure concurrenc safety of the public functions
 
-	sim simpleLog
+	sim simpleLog // the simple logger properties
 }
 
 type simpleLog struct {
@@ -77,7 +77,6 @@ func (s *service) isActive() bool {
 	return s.active
 }
 
-// TODO - still required, naming
 // instance returns log handler instances for a given log target.
 func (s *simpleLog) instance(target int) (*log.Logger, *log.Logger) {
 	var log1, log2 *log.Logger
@@ -94,7 +93,6 @@ func (s *simpleLog) instance(target int) (*log.Logger, *log.Logger) {
 	return log1, log2
 }
 
-// TODO - still required
 // createsimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
 // Each log target is assinged its own log handler.
 func (s *simpleLog) createsimpleLog(target int) *log.Logger {
