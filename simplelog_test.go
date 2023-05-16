@@ -8,25 +8,25 @@ import (
 	"testing"
 )
 
-func Test_StartService(t *testing.T) {
-	StartService(1)
+func Test_Startup(t *testing.T) {
+	Startup(1)
 
-	if s := sLog.serviceState(); s != running {
-		t.Error("Expected state", running, ", but got ", s)
+	if a := s.isActive(); a != true {
+		t.Error("Expected state true but got ", a)
 	} else {
-		sLog.stopLogService <- signal{}
-		sLog.state = stopped
+		s.stop <- signal{}
+		s.active = false
 	}
 }
 
-func Test_StopService(t *testing.T) {
-	StartService(1)
-	StopService()
+func Test_Shutdown(t *testing.T) {
+	Startup(1)
+	Shutdown()
 
-	if s := sLog.serviceState(); s != stopped {
-		t.Error("Expected state", stopped, ", but got ", s)
-		sLog.stopLogService <- signal{}
-		sLog.state = stopped
+	if a := s.isActive(); a == true {
+		t.Error("Expected state false but got ", a)
+		s.stop <- signal{}
+		s.active = false
 	}
 }
 
@@ -39,9 +39,9 @@ func Test_InitLogFile(t *testing.T) {
 		os.Remove(logFile)
 	}
 
-	StartService(1)
+	Startup(1)
 	InitLogFile(logFile)
-	StopService()
+	Shutdown()
 
 	data, err := os.Stat(logFile)
 	if err != nil {
@@ -68,10 +68,10 @@ func Test_ChangeLogFile(t *testing.T) {
 		os.Remove(logFile2)
 	}
 
-	StartService(1)
+	Startup(1)
 	InitLogFile(logFile1)
-	ChangeLogFile(logFile2)
-	StopService()
+	ChangeLogName(logFile2)
+	Shutdown()
 
 	data, err := os.Stat(logFile1)
 	if err != nil {
@@ -102,9 +102,9 @@ func Test_WriteToStdout(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	StartService(1)
+	Startup(1)
 	WriteToStdout("The answer to all questions is", 42)
-	StopService()
+	Shutdown()
 
 	_ = w.Close()
 
@@ -125,10 +125,10 @@ func Test_WriteToFile(t *testing.T) {
 		os.Remove(logFile)
 	}
 
-	StartService(1)
+	Startup(1)
 	InitLogFile(logFile)
 	WriteToFile("The answer to all questions is", 42)
-	StopService()
+	Shutdown()
 
 	data, err := os.ReadFile(logFile)
 	if err != nil {
@@ -151,10 +151,10 @@ func Test_WriteToMulti(t *testing.T) {
 		os.Remove(logFile)
 	}
 
-	StartService(1)
+	Startup(1)
 	InitLogFile(logFile)
 	WriteToMulti("The answer to all questions is", 42)
-	StopService()
+	Shutdown()
 
 	_ = w.Close()
 
