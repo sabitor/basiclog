@@ -1,5 +1,5 @@
 # Log framework - simplelog
-simplelog is a log framework with a focus on simplicity, usability and ready to be used seamlessly within goroutines.
+simplelog is a log framework mainly with a focus on simplicity and usability.
 
 It utilizes the log package from the standard library with some advanced features.
 Once started, the simple logger runs as a service and listens for logging requests.
@@ -35,8 +35,8 @@ import (
 
 func main() {
     logBuffer := 10 // number of log messages which can be buffered before the log service blocks
-    simplelog.StartService(logBuffer)
-    defer simplelog.StopService()
+    simplelog.Startup(logBuffer)
+    defer simplelog.Shutdown()
 
     simplelog.WriteToStdout(">>> Start application")
     log1 := "log1.txt"
