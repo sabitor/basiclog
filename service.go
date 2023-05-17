@@ -3,7 +3,6 @@ package simplelog
 import (
 	"log"
 	"os"
-	"sync"
 )
 
 // log targets
@@ -41,9 +40,6 @@ type service struct {
 	stop   chan signal        // the channel for sending a stop signal to the log service
 	done   chan signal        // the channel for sending a done signal to the caller
 
-	active bool       // indicator whether the log service was started
-	mtx    sync.Mutex // mutex to ensure concurrenc safety of the public functions
-
 	sim simpleLog // the simple logger properties
 }
 
@@ -57,7 +53,11 @@ var s = &service{}
 
 // isActive checks whether the log service is active.
 func (s *service) isActive() bool {
-	return s.active
+	if s.data != nil {
+		return true
+	} else {
+		return false
+	}
 }
 
 // instance returns log handler instances for a given log target.
@@ -116,10 +116,14 @@ func (s *simpleLog) changeLogFileName(newLogName string) {
 //   - data
 //   - config
 //   - stop
-func (s *service) service() {
+func (s *service) service(alive chan<- signal) {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
+	// service is alive - send acknowledgment to caller
+	alive <- signal{}
+
+	// service loop
 	for {
 		select {
 		case <-s.stop:
