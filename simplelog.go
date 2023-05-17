@@ -38,8 +38,9 @@ func (s *service) startup(bufferSize int) {
 		s.done = make(chan signal)
 
 		// start the log service
-		go s.service()
-		s.active = true
+		alive := make(chan signal)
+		go s.service(alive)
+		<-alive
 	} else {
 		panic(m002)
 	}
@@ -52,23 +53,13 @@ func Shutdown() {
 }
 
 func (s *service) shutdown() {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-
 	if s.isActive() {
 		// stop the log service
-		s.active = false
 		s.stop <- signal{}
 		<-s.done
 
 		// cleanup
-		// s.fileHandle.Close()
-		close(s.data)
-		close(s.config)
-		close(s.stop)
-		close(s.done)
-		// s.logHandle = nil
-		// s.fileHandle = nil
+		s.sim.fileHandle.Close()
 	} else {
 		panic(m003)
 	}
@@ -79,8 +70,6 @@ func InitLogFile(logName string) {
 	s.initLogFile(logName)
 }
 func (s *service) initLogFile(logName string) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	if s.isActive() {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
@@ -98,8 +87,6 @@ func ChangeLogName(newLogName string) {
 }
 
 func (s *service) changeLogName(newLogName string) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	if s.isActive() {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
@@ -115,14 +102,13 @@ func WriteToStdout(values ...any) {
 }
 
 func (s *service) writeToStdout(values ...any) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	if s.isActive() {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
 		panic(m004)
 	}
+
 }
 
 // WriteToFile writes a log message to a log file.
@@ -131,8 +117,6 @@ func WriteToFile(values ...any) {
 }
 
 func (s *service) writeToFile(values ...any) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	if s.isActive() {
 		if s.sim.fileHandle == nil {
 			panic(m001)
@@ -151,8 +135,6 @@ func WriteToMulti(values ...any) {
 }
 
 func (s *service) writeToMulti(values ...any) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	if s.isActive() {
 		if s.sim.fileHandle == nil {
 			panic(m001)
