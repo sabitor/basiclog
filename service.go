@@ -126,18 +126,26 @@ func (s *service) service() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	ticker := time.NewTicker(heartBeatInterval)
-	defer ticker.Stop()
+	// initial heartbeat to the watchdog
+	t := time.Now()
+	s.serviceHeartBeat <- t
+	heartBeat := time.NewTicker(heartBeatInterval)
 
 	// service loop
 	for {
 		select {
-		case t := <-ticker.C:
+		case t = <-heartBeat.C:
 			s.serviceHeartBeat <- t
 		case <-s.serviceStop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
 			s.serviceDone <- signal{}
+			heartBeat.Stop()
+
+			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running
+			t := time.Now()
+			t = t.Add((-1) * time.Hour)
+			s.serviceHeartBeat <- t
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)
