@@ -42,7 +42,7 @@ func (s *service) startup(bufferSize int) {
 		for {
 			// wait until the service is up
 			if s.isServiceRunning() {
-				return
+				break
 			}
 		}
 	} else {
@@ -64,6 +64,11 @@ func (s *service) shutdown() {
 
 		// cleanup
 		s.sLog.fileHandle.Close()
+		for {
+			if !s.isServiceRunning() {
+				break
+			}
+		}
 	} else {
 		panic(m003)
 	}
