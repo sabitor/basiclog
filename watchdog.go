@@ -1,6 +1,8 @@
 package simplelog
 
-import "time"
+import (
+	"time"
+)
 
 // general
 const (
