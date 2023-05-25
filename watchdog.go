@@ -11,6 +11,8 @@ const (
 )
 
 // init starts a watchdog.
+// The watchdog monitors the log service and based on the monitoring results
+// it can answer questions regarding the availability of this service.
 func init() {
 	s.serviceRunning = make(chan signal, 1)
 	s.serviceRunningResponse = make(chan bool)
