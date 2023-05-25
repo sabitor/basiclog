@@ -8,29 +8,29 @@ import (
 	"testing"
 )
 
-func Test_Startup(t *testing.T) {
+func Test_service_startup(t *testing.T) {
 	Startup(1)
 
-	if a := s.isActive(); a != true {
-		t.Error("Expected state true but got ", a)
+	if a := s.isServiceRunning(); a != true {
+		t.Error("Expected state true but got", a)
 	} else {
-		s.stop <- signal{}
-		s.active = false
+		s.serviceStop <- signal{}
+		<-s.serviceDone
 	}
 }
 
-func Test_Shutdown(t *testing.T) {
+func Test_service_shutdown(t *testing.T) {
 	Startup(1)
 	Shutdown()
 
-	if a := s.isActive(); a == true {
-		t.Error("Expected state false but got ", a)
-		s.stop <- signal{}
-		s.active = false
+	if a := s.isServiceRunning(); a == true {
+		t.Error("Expected state false but got", a)
+		s.serviceStop <- signal{}
+		<-s.serviceDone
 	}
 }
 
-func Test_InitLogFile(t *testing.T) {
+func Test_service_initLogFile(t *testing.T) {
 	logFile := "test1.log"
 	filePerms := "-rw-r--r--"
 	fileSize := 0
@@ -55,7 +55,7 @@ func Test_InitLogFile(t *testing.T) {
 	}
 }
 
-func Test_ChangeLogFile(t *testing.T) {
+func Test_service_changeLogFile(t *testing.T) {
 	logFile1 := "test1.log"
 	logFile2 := "test2.log"
 	filePerms := "-rw-r--r--"
@@ -96,7 +96,7 @@ func Test_ChangeLogFile(t *testing.T) {
 	}
 }
 
-func Test_WriteToStdout(t *testing.T) {
+func Test_service_writeToStdout(t *testing.T) {
 	stdOut := os.Stdout
 
 	r, w, _ := os.Pipe()
@@ -118,7 +118,7 @@ func Test_WriteToStdout(t *testing.T) {
 	}
 }
 
-func Test_WriteToFile(t *testing.T) {
+func Test_service_writeToFile(t *testing.T) {
 	logFile := "test1.log"
 
 	if _, err := os.Stat(logFile); err == nil {
@@ -140,7 +140,7 @@ func Test_WriteToFile(t *testing.T) {
 	}
 }
 
-func Test_WriteToMulti(t *testing.T) {
+func Test_service_writeToMulti(t *testing.T) {
 	stdOut := os.Stdout
 	logFile := "test2.log"
 
