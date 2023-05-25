@@ -3,6 +3,7 @@ package simplelog
 import (
 	"log"
 	"os"
+	"time"
 )
 
 // log targets
@@ -35,12 +36,15 @@ type configMessage struct {
 
 // service is a configuration to handle simple log requests.
 type service struct {
+	sLog   simpleLog          // the simple logger properties
 	data   chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
 	config chan configMessage // the channel for sending config messages to the log service
-	stop   chan signal        // the channel for sending a stop signal to the log service
-	done   chan signal        // the channel for sending a done signal to the caller
 
-	sim simpleLog // the simple logger properties
+	serviceDone            chan signal    // the channel for sending a done signal to the caller
+	serviceStop            chan signal    // the channel for sending a stop signal to the log service
+	serviceRunning         chan signal    // the channel for sending a serviceRunning signal to the watchdog
+	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
+	serviceHeartBeat       chan time.Time // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
 }
 
 type simpleLog struct {
@@ -51,9 +55,10 @@ type simpleLog struct {
 // global service instance
 var s = &service{}
 
-// isActive checks whether the log service is active.
-func (s *service) isActive() bool {
-	if s.data != nil {
+// isServiceRunning answers requests if the log service is running.
+func (s *service) isServiceRunning() bool {
+	s.serviceRunning <- signal{}
+	if <-s.serviceRunningResponse {
 		return true
 	} else {
 		return false
@@ -115,35 +120,38 @@ func (s *simpleLog) changeLogFileName(newLogName string) {
 // It listenes on the following channels:
 //   - data
 //   - config
-//   - stop
-func (s *service) service(alive chan<- signal) {
+//   - serviceStop
+//   - ticker.C
+func (s *service) service() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	// service is alive - send acknowledgment to caller
-	alive <- signal{}
+	ticker := time.NewTicker(heartBeatInterval)
+	defer ticker.Stop()
 
 	// service loop
 	for {
 		select {
-		case <-s.stop:
+		case t := <-ticker.C:
+			s.serviceHeartBeat <- t
+		case <-s.serviceStop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
-			s.done <- signal{}
+			s.serviceDone <- signal{}
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)
 		case cfgMsg = <-s.config:
 			switch cfgMsg.category {
 			case initlog:
-				s.sim.setupLogFile(cfgMsg.data)
-				s.done <- signal{}
+				s.sLog.setupLogFile(cfgMsg.data)
+				s.serviceDone <- signal{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
 				s.flushMessages(len(s.data))
 				// change the log file name
-				s.sim.changeLogFileName(cfgMsg.data)
-				s.done <- signal{}
+				s.sLog.changeLogFileName(cfgMsg.data)
+				s.serviceDone <- signal{}
 			}
 		}
 	}
@@ -153,13 +161,13 @@ func (s *service) service(alive chan<- signal) {
 func (s *service) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ := s.sim.instance(stdout)
+		stdoutLogHandle, _ := s.sLog.instance(stdout)
 		stdoutLogHandle.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ := s.sim.instance(file)
+		fileLogHandle, _ := s.sLog.instance(file)
 		fileLogHandle.Print(logMsg.data)
 	case multi:
-		stdoutLogHandle, fileLogHandle := s.sim.instance(multi)
+		stdoutLogHandle, fileLogHandle := s.sLog.instance(multi)
 		stdoutLogHandle.Print(logMsg.data)
 		fileLogHandle.Print(logMsg.data)
 	}

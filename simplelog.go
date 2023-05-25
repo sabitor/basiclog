@@ -27,20 +27,24 @@ func Startup(bufferSize int) {
 }
 
 func (s *service) startup(bufferSize int) {
-	if !s.isActive() {
+	if !s.isServiceRunning() {
 		// setup log handle map
-		s.sim.logHandle = make(map[int]*log.Logger)
+		s.sLog.logHandle = make(map[int]*log.Logger)
 
 		// setup channels
 		s.data = make(chan logMessage, bufferSize)
 		s.config = make(chan configMessage)
-		s.stop = make(chan signal)
-		s.done = make(chan signal)
+		s.serviceStop = make(chan signal)
+		s.serviceDone = make(chan signal)
 
 		// start the log service
-		alive := make(chan signal)
-		go s.service(alive)
-		<-alive
+		go s.service()
+		for {
+			// wait until the service is up
+			if s.isServiceRunning() {
+				return
+			}
+		}
 	} else {
 		panic(m002)
 	}
@@ -53,13 +57,13 @@ func Shutdown() {
 }
 
 func (s *service) shutdown() {
-	if s.isActive() {
+	if s.isServiceRunning() {
 		// stop the log service
-		s.stop <- signal{}
-		<-s.done
+		s.serviceStop <- signal{}
+		<-s.serviceDone
 
 		// cleanup
-		s.sim.fileHandle.Close()
+		s.sLog.fileHandle.Close()
 	} else {
 		panic(m003)
 	}
@@ -70,10 +74,10 @@ func InitLogFile(logName string) {
 	s.initLogFile(logName)
 }
 func (s *service) initLogFile(logName string) {
-	if s.isActive() {
+	if s.isServiceRunning() {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
-		<-s.done
+		<-s.serviceDone
 	} else {
 		panic(m004)
 	}
@@ -87,10 +91,10 @@ func ChangeLogName(newLogName string) {
 }
 
 func (s *service) changeLogName(newLogName string) {
-	if s.isActive() {
+	if s.isServiceRunning() {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
-		<-s.done
+		<-s.serviceDone
 	} else {
 		panic(m004)
 	}
@@ -102,13 +106,12 @@ func WriteToStdout(values ...any) {
 }
 
 func (s *service) writeToStdout(values ...any) {
-	if s.isActive() {
+	if s.isServiceRunning() {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
 		panic(m004)
 	}
-
 }
 
 // WriteToFile writes a log message to a log file.
@@ -117,8 +120,8 @@ func WriteToFile(values ...any) {
 }
 
 func (s *service) writeToFile(values ...any) {
-	if s.isActive() {
-		if s.sim.fileHandle == nil {
+	if s.isServiceRunning() {
+		if s.sLog.fileHandle == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
@@ -135,8 +138,8 @@ func WriteToMulti(values ...any) {
 }
 
 func (s *service) writeToMulti(values ...any) {
-	if s.isActive() {
-		if s.sim.fileHandle == nil {
+	if s.isServiceRunning() {
+		if s.sLog.fileHandle == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
