@@ -40,8 +40,9 @@ type service struct {
 	data   chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
 	config chan configMessage // the channel for sending config messages to the log service
 
-	serviceDone            chan signal    // the channel for sending a done signal to the caller
-	serviceStop            chan signal    // the channel for sending a stop signal to the log service
+	confirmed chan signal // the channel for sending a confirmation signal to the caller
+	stop      chan signal // the channel for sending a stop signal to the log service
+
 	serviceRunning         chan signal    // the channel for sending a serviceRunning signal to the watchdog
 	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
 	serviceHeartBeat       chan time.Time // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
@@ -136,16 +137,15 @@ func (s *service) service() {
 		select {
 		case t = <-heartBeat.C:
 			s.serviceHeartBeat <- t
-		case <-s.serviceStop:
+		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
-			s.serviceDone <- signal{}
 			heartBeat.Stop()
-
 			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running
 			t := time.Now()
 			t = t.Add((-1) * time.Hour)
 			s.serviceHeartBeat <- t
+			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)
@@ -153,13 +153,13 @@ func (s *service) service() {
 			switch cfgMsg.category {
 			case initlog:
 				s.sLog.setupLogFile(cfgMsg.data)
-				s.serviceDone <- signal{}
+				s.confirmed <- signal{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
 				s.flushMessages(len(s.data))
 				// change the log file name
 				s.sLog.changeLogFileName(cfgMsg.data)
-				s.serviceDone <- signal{}
+				s.confirmed <- signal{}
 			}
 		}
 	}
