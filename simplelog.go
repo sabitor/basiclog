@@ -9,6 +9,7 @@ package simplelog
 
 import (
 	"log"
+	"time"
 )
 
 // message catalog
@@ -27,7 +28,7 @@ func Startup(bufferSize int) {
 }
 
 func (s *service) startup(bufferSize int) {
-	if !s.isServiceRunning() {
+	if !w.checkService() {
 		// setup log handle map
 		s.sLog.logHandle = make(map[int]*log.Logger)
 
@@ -36,12 +37,13 @@ func (s *service) startup(bufferSize int) {
 		s.config = make(chan configMessage)
 		s.stop = make(chan signal)
 		s.confirmed = make(chan signal)
+		s.serviceHeartBeat = make(chan time.Time)
 
 		// start the log service
-		go s.service()
+		go s.run()
 		for {
 			// wait until the service is up
-			if s.isServiceRunning() {
+			if w.checkService() {
 				break
 			}
 		}
@@ -57,7 +59,7 @@ func Shutdown() {
 }
 
 func (s *service) shutdown() {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		// stop the log service
 		s.stop <- signal{}
 		<-s.confirmed
@@ -65,7 +67,7 @@ func (s *service) shutdown() {
 		// cleanup
 		s.sLog.fileHandle.Close()
 		for {
-			if !s.isServiceRunning() {
+			if !w.checkService() {
 				break
 			}
 		}
@@ -79,7 +81,7 @@ func InitLogFile(logName string) {
 	s.initLogFile(logName)
 }
 func (s *service) initLogFile(logName string) {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
 		<-s.confirmed
@@ -96,7 +98,7 @@ func ChangeLogName(newLogName string) {
 }
 
 func (s *service) changeLogName(newLogName string) {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
 		<-s.confirmed
@@ -111,7 +113,7 @@ func WriteToStdout(values ...any) {
 }
 
 func (s *service) writeToStdout(values ...any) {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
@@ -125,7 +127,7 @@ func WriteToFile(values ...any) {
 }
 
 func (s *service) writeToFile(values ...any) {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		if s.sLog.fileHandle == nil {
 			panic(m001)
 		}
@@ -143,7 +145,7 @@ func WriteToMulti(values ...any) {
 }
 
 func (s *service) writeToMulti(values ...any) {
-	if s.isServiceRunning() {
+	if w.checkService() {
 		if s.sLog.fileHandle == nil {
 			panic(m001)
 		}

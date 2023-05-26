@@ -34,18 +34,15 @@ type configMessage struct {
 	data     string // the data, which will be processed by a config task
 }
 
-// service is a configuration to handle simple log requests.
+// service is a data collection to control log request workflows.
 type service struct {
-	sLog   simpleLog          // the simple logger properties
-	data   chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
-	config chan configMessage // the channel for sending config messages to the log service
+	sLog simpleLog // the simple logger properties
 
-	confirmed chan signal // the channel for sending a confirmation signal to the caller
-	stop      chan signal // the channel for sending a stop signal to the log service
-
-	serviceRunning         chan signal    // the channel for sending a serviceRunning signal to the watchdog
-	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
-	serviceHeartBeat       chan time.Time // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
+	data             chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
+	config           chan configMessage // the channel for sending config messages to the log service
+	confirmed        chan signal        // the channel for sending a confirmation signal to the caller
+	stop             chan signal        // the channel for sending a stop signal to the log service
+	serviceHeartBeat chan time.Time     // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
 }
 
 type simpleLog struct {
@@ -56,14 +53,9 @@ type simpleLog struct {
 // global service instance
 var s = &service{}
 
-// isServiceRunning answers requests if the log service is running.
-func (s *service) isServiceRunning() bool {
-	s.serviceRunning <- signal{}
-	if <-s.serviceRunningResponse {
-		return true
-	} else {
-		return false
-	}
+// getServiceHeartBeat returns the serviceHeartBeat channel
+func (s *service) getServiceHeartBeat() chan time.Time {
+	return s.serviceHeartBeat
 }
 
 // instance returns log handler instances for a given log target.
@@ -116,14 +108,14 @@ func (s *simpleLog) changeLogFileName(newLogName string) {
 	s.setupLogFile(newLogName)
 }
 
-// service represents the log service.
+// run represents the log service.
 // This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
 // It listenes on the following channels:
+//   - time.Time
+//   - stop
 //   - data
 //   - config
-//   - serviceStop
-//   - ticker.C
-func (s *service) service() {
+func (s *service) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 

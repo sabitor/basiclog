@@ -11,7 +11,7 @@ import (
 func Test_service_startup(t *testing.T) {
 	Startup(1)
 
-	if a := s.isServiceRunning(); a != true {
+	if a := w.checkService(); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
 		s.stop <- signal{}
@@ -23,7 +23,7 @@ func Test_service_shutdown(t *testing.T) {
 	Startup(1)
 	Shutdown()
 
-	if a := s.isServiceRunning(); a == true {
+	if a := w.checkService(); a == true {
 		t.Error("Expected state false but got", a)
 		s.stop <- signal{}
 		<-s.confirmed
