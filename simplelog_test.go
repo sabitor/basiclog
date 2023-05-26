@@ -14,8 +14,8 @@ func Test_service_startup(t *testing.T) {
 	if a := s.isServiceRunning(); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
-		s.serviceStop <- signal{}
-		<-s.serviceDone
+		s.stop <- signal{}
+		<-s.confirmed
 	}
 }
 
@@ -25,8 +25,8 @@ func Test_service_shutdown(t *testing.T) {
 
 	if a := s.isServiceRunning(); a == true {
 		t.Error("Expected state false but got", a)
-		s.serviceStop <- signal{}
-		<-s.serviceDone
+		s.stop <- signal{}
+		<-s.confirmed
 	}
 }
 
@@ -173,7 +173,7 @@ func Test_service_writeToMulti(t *testing.T) {
 	if err != nil {
 		t.Error("Expected to find file", logFile, "- but got:", err)
 	} else if !strings.Contains(string(data), "The answer to all questions is "+fmt.Sprint(42)) {
-		t.Error("Expected log record contains:", "The answer to all questions is "+fmt.Sprint(42), "- but it doesn't:", string(data))
+		t.Error("Expected log record:", "The answer to all questions is "+fmt.Sprint(42), "- but got:", string(data))
 	} else {
 		os.Remove(logFile)
 	}
