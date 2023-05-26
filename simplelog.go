@@ -34,8 +34,8 @@ func (s *service) startup(bufferSize int) {
 		// setup channels
 		s.data = make(chan logMessage, bufferSize)
 		s.config = make(chan configMessage)
-		s.serviceStop = make(chan signal)
-		s.serviceDone = make(chan signal)
+		s.stop = make(chan signal)
+		s.confirmed = make(chan signal)
 
 		// start the log service
 		go s.service()
@@ -59,8 +59,8 @@ func Shutdown() {
 func (s *service) shutdown() {
 	if s.isServiceRunning() {
 		// stop the log service
-		s.serviceStop <- signal{}
-		<-s.serviceDone
+		s.stop <- signal{}
+		<-s.confirmed
 
 		// cleanup
 		s.sLog.fileHandle.Close()
@@ -82,7 +82,7 @@ func (s *service) initLogFile(logName string) {
 	if s.isServiceRunning() {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
-		<-s.serviceDone
+		<-s.confirmed
 	} else {
 		panic(m004)
 	}
@@ -99,7 +99,7 @@ func (s *service) changeLogName(newLogName string) {
 	if s.isServiceRunning() {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
-		<-s.serviceDone
+		<-s.confirmed
 	} else {
 		panic(m004)
 	}
