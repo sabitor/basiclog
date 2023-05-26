@@ -33,7 +33,7 @@ func init() {
 	}
 }
 
-// watchdog detects if the log service is running.
+// run detects if the log service is running.
 func (w *watchdog) run(watchdogRunning chan bool) {
 	var t time.Time = time.Now()
 	var timeDiff_ms int64

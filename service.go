@@ -110,7 +110,7 @@ func (s *simpleLog) changeLogFileName(newLogName string) {
 
 // run represents the log service.
 // This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
-// It listenes on the following channels:
+// It handles client requests by listening on the following channels:
 //   - time.Time
 //   - stop
 //   - data
