@@ -15,7 +15,7 @@ const (
 // it can answer questions regarding the availability of this service.
 func init() {
 	s.serviceRunning = make(chan signal, 1)
-	s.serviceRunningResponse = make(chan bool)
+	s.serviceRunningResponse = make(chan bool, 1)
 	s.serviceHeartBeat = make(chan time.Time)
 
 	watchdogRunning := make(chan bool)
