@@ -43,7 +43,7 @@ func (w *watchdog) run(watchdogRunning chan bool) {
 	for {
 		select {
 		case watchdogRunning <- true:
-		case t = <-s.getServiceHeartBeat():
+		case t = <-s.getHeartBeat():
 		case <-w.serviceRunning:
 			timeDiff_ms = time.Until(t).Milliseconds() * (-1)
 			if timeDiff_ms == 0 || timeDiff_ms > max_service_response_delay {

@@ -38,11 +38,11 @@ type configMessage struct {
 type service struct {
 	sLog simpleLog // the simple logger properties
 
-	data             chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
-	config           chan configMessage // the channel for sending config messages to the log service
-	confirmed        chan signal        // the channel for sending a confirmation signal to the caller
-	stop             chan signal        // the channel for sending a stop signal to the log service
-	serviceHeartBeat chan time.Time     // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
+	data      chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
+	config    chan configMessage // the channel for sending config messages to the log service
+	confirmed chan signal        // the channel for sending a confirmation signal to the caller
+	stop      chan signal        // the channel for sending a stop signal to the log service
+	heartBeat chan time.Time     // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
 }
 
 type simpleLog struct {
@@ -53,9 +53,9 @@ type simpleLog struct {
 // global service instance
 var s = &service{}
 
-// getServiceHeartBeat returns the serviceHeartBeat channel
-func (s *service) getServiceHeartBeat() chan time.Time {
-	return s.serviceHeartBeat
+// getHeartBeat returns the heartBeat channel
+func (s *service) getHeartBeat() chan time.Time {
+	return s.heartBeat
 }
 
 // instance returns log handler instances for a given log target.
@@ -121,22 +121,22 @@ func (s *service) run() {
 
 	// initial heartbeat to the watchdog
 	t := time.Now()
-	s.serviceHeartBeat <- t
+	s.heartBeat <- t
 	heartBeat := time.NewTicker(heartBeatInterval)
 
 	// service loop
 	for {
 		select {
 		case t = <-heartBeat.C:
-			s.serviceHeartBeat <- t
+			s.heartBeat <- t
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
 			heartBeat.Stop()
-			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running
+			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running and does the right steps
 			t := time.Now()
 			t = t.Add((-1) * time.Hour)
-			s.serviceHeartBeat <- t
+			s.heartBeat <- t
 			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:

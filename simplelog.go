@@ -37,7 +37,7 @@ func (s *service) startup(bufferSize int) {
 		s.config = make(chan configMessage)
 		s.stop = make(chan signal)
 		s.confirmed = make(chan signal)
-		s.serviceHeartBeat = make(chan time.Time)
+		s.heartBeat = make(chan time.Time)
 
 		// start the log service
 		go s.run()
