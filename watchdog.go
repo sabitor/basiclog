@@ -12,8 +12,9 @@ const (
 
 // watchdog is a structure to watch and handle the communication with the assigned log service.
 type watchdog struct {
-	serviceRunning         chan signal // the channel for sending a serviceRunning signal to the watchdog
-	serviceRunningResponse chan bool   // the channel for sending a serviceRunningResponse message to the caller
+	serviceRunning         chan signal    // the channel for sending a serviceRunning signal to the watchdog
+	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
+	heartBeatMonitor       chan time.Time // the channel is used to monitor and evaluate the heartbeats sent by the log service
 }
 
 // global watchdog instance
@@ -25,6 +26,7 @@ var w = &watchdog{}
 func init() {
 	w.serviceRunning = make(chan signal, 1)
 	w.serviceRunningResponse = make(chan bool, 1)
+	w.heartBeatMonitor = make(chan time.Time)
 
 	watchdogRunning := make(chan bool)
 	go w.run(watchdogRunning)
@@ -43,7 +45,7 @@ func (w *watchdog) run(watchdogRunning chan bool) {
 	for {
 		select {
 		case watchdogRunning <- true:
-		case t = <-s.getHeartBeat():
+		case t = <-w.heartBeatMonitor:
 		case <-w.serviceRunning:
 			timeDiff_ms = time.Until(t).Milliseconds() * (-1)
 			if timeDiff_ms == 0 || timeDiff_ms > max_service_response_delay {
@@ -64,4 +66,9 @@ func (w *watchdog) checkService() bool {
 	} else {
 		return false
 	}
+}
+
+// getHeartBeatMonitor returns the heartBeat channel
+func (w *watchdog) getHeartBeatMonitor() chan time.Time {
+	return w.heartBeatMonitor
 }
