@@ -167,13 +167,13 @@ func (s *service) writeMessage(logMsg logMessage) {
 		stdoutLogger := s.getLogWriter(&s.stdoutLog)
 		stdoutLogger.Print(logMsg.data)
 	case file:
-		fileLogHandle := s.getLogWriter(&s.fileLog)
-		fileLogHandle.Print(logMsg.data)
+		fileLogger := s.getLogWriter(&s.fileLog)
+		fileLogger.Print(logMsg.data)
 	case multi:
-		stdoutLogHandle := s.getLogWriter(&s.stdoutLog)
-		fileLogHandle := s.getLogWriter(&s.fileLog)
-		stdoutLogHandle.Print(logMsg.data)
-		fileLogHandle.Print(logMsg.data)
+		stdoutLogger := s.getLogWriter(&s.stdoutLog)
+		fileLogger := s.getLogWriter(&s.fileLog)
+		stdoutLogger.Print(logMsg.data)
+		fileLogger.Print(logMsg.data)
 	}
 }
 
