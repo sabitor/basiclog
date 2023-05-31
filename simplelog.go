@@ -7,11 +7,6 @@
 // to either standard out, a log file, or multiple targets.
 package simplelog
 
-import (
-	"log"
-	"time"
-)
-
 // message catalog
 const (
 	m001 = "log file not initialized"
@@ -29,15 +24,11 @@ func Startup(bufferSize int) {
 
 func (s *service) startup(bufferSize int) {
 	if !w.checkService() {
-		// setup log handle map
-		s.sLog.logHandle = make(map[int]*log.Logger)
-
 		// setup channels
 		s.data = make(chan logMessage, bufferSize)
 		s.config = make(chan configMessage)
 		s.stop = make(chan signal)
 		s.confirmed = make(chan signal)
-		s.heartBeat = make(chan time.Time)
 
 		// start the log service
 		go s.run()
@@ -65,7 +56,7 @@ func (s *service) shutdown() {
 		<-s.confirmed
 
 		// cleanup
-		s.sLog.fileHandle.Close()
+		s.fileDesc.Close()
 		for {
 			if !w.checkService() {
 				break
@@ -128,7 +119,7 @@ func WriteToFile(values ...any) {
 
 func (s *service) writeToFile(values ...any) {
 	if w.checkService() {
-		if s.sLog.fileHandle == nil {
+		if s.fileDesc == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
@@ -146,7 +137,7 @@ func WriteToMulti(values ...any) {
 
 func (s *service) writeToMulti(values ...any) {
 	if w.checkService() {
-		if s.sLog.fileHandle == nil {
+		if s.fileDesc == nil {
 			panic(m001)
 		}
 		msg := parseValues(values)
