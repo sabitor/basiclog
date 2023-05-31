@@ -97,6 +97,7 @@ func Test_service_changeLogFile(t *testing.T) {
 }
 
 func Test_service_writeToStdout(t *testing.T) {
+	s = new(service) // reset service instance
 	stdOut := os.Stdout
 
 	r, w, _ := os.Pipe()
@@ -119,6 +120,7 @@ func Test_service_writeToStdout(t *testing.T) {
 }
 
 func Test_service_writeToFile(t *testing.T) {
+	s = new(service) // reset service instance
 	logFile := "test1.log"
 
 	if _, err := os.Stat(logFile); err == nil {
@@ -131,6 +133,7 @@ func Test_service_writeToFile(t *testing.T) {
 	Shutdown()
 
 	data, err := os.ReadFile(logFile)
+
 	if err != nil {
 		t.Error("Expected to find file", logFile, "- but got:", err)
 	} else if !strings.Contains(string(data), "The answer to all questions is "+fmt.Sprint(42)) {
@@ -141,6 +144,7 @@ func Test_service_writeToFile(t *testing.T) {
 }
 
 func Test_service_writeToMulti(t *testing.T) {
+	s = new(service) // reset service instance
 	stdOut := os.Stdout
 	logFile := "test2.log"
 
