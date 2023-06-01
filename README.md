@@ -34,7 +34,7 @@ import (
 )
 
 func main() {
-    logBuffer := 10 // number of log messages which can be buffered before the log service blocks
+    logBuffer := 1 // number of log messages which can be buffered before the log service blocks
     simplelog.Startup(logBuffer)
     defer simplelog.Shutdown()
 
