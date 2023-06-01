@@ -66,9 +66,10 @@ type multiLog struct {
 	fileLog
 }
 
-// logWriter is the interface which creates and returns log writer instances.
+// logWriter interface includes definitions of the following method signatures:
+//   - instance
 type logWriter interface {
-	instance() *log.Logger
+	instance() *log.Logger // create and return a log.logger instance
 }
 
 // instance denotes the logWriter interface implementation by the stdoutLog type.
