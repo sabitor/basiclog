@@ -8,9 +8,9 @@ import (
 
 // log targets
 const (
-	stdout = 1 << iota     // write the log record to STDOUT
+	stdout = 1 << iota     // write the log record to stdout
 	file                   // write the log record to the log file
-	multi  = stdout | file // write the log record to STDOUT and to the log file
+	multi  = stdout | file // write the log record to stdout and to the log file
 )
 
 // configuration categories
@@ -22,95 +22,99 @@ const (
 // signal to confirm actions across channels
 type signal struct{}
 
-// A logMessage represents the log message which will be sent to the log service.
+// a logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
 	target int    // the log target bits, e.g. stdout, file, and so on.
 	data   string // the payload of the log message, which will be sent to the log target
 }
 
-// A configMessage represents the config message which will be sent to the log service.
+// a configMessage represents the config message which will be sent to the log service.
 type configMessage struct {
 	category int    // the configuration category bits, which are used to trigger certain config tasks by the log service, e.g. setlogname, changelogname, and so on.
 	data     string // the data, which will be processed by a config task
 }
 
-// service is a data collection to control log request workflows.
+// service is the instance to control and handle the way of log workflows.
 type service struct {
-	sLog simpleLog // the simple logger properties
+	logFactory
 
-	data             chan logMessage    // the channel for sending log messages to the log service; this channel will be a buffered channel
-	config           chan configMessage // the channel for sending config messages to the log service
-	confirmed        chan signal        // the channel for sending a confirmation signal to the caller
-	stop             chan signal        // the channel for sending a stop signal to the log service
-	serviceHeartBeat chan time.Time     // the channel used by the log service for sending a time message at defined intervals (ticker) to the watchdog
+	config    chan configMessage // the channel for sending config messages to the log service
+	confirmed chan signal        // the channel for sending a confirmation signal to the caller
+	stop      chan signal        // the channel for sending a stop signal to the log service
 }
 
-type simpleLog struct {
-	fileHandle *os.File            // the file handle of the log file
-	logHandle  map[int]*log.Logger // a map which stores for every log target its assigned log handle
+// logFactory is the base data collection to support logging to multiple targets.
+type logFactory struct {
+	data     chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
+	multiLog                 // the multiLog supports logging to stdout and file
 }
 
-// global service instance
-var s = &service{}
-
-// getServiceHeartBeat returns the serviceHeartBeat channel
-func (s *service) getServiceHeartBeat() chan time.Time {
-	return s.serviceHeartBeat
+// stdoutLogWriter is a data collection to support logging to stdout.
+type stdoutLog struct {
+	stdoutLogInstance *log.Logger
 }
 
-// instance returns log handler instances for a given log target.
-func (s *simpleLog) instance(target int) (*log.Logger, *log.Logger) {
-	var log1, log2 *log.Logger
-	switch target {
-	case stdout:
-		log1 = s.createsimpleLog(stdout)
-	case file:
-		log1 = s.createsimpleLog(file)
-	case multi:
-		// stdout and file log handler have different properties, thus io.MultiWriter can't be used
-		log1 = s.createsimpleLog(stdout)
-		log2 = s.createsimpleLog(file)
+// fileLogWriter is a data collection to support logging to files.
+type fileLog struct {
+	fileDesc        *os.File
+	fileLogInstance *log.Logger
+}
+
+// logWriter is the log writer which supports logging to stdout and to files.
+type multiLog struct {
+	stdoutLog
+	fileLog
+}
+
+// logWriter interface includes definitions of the following method signatures:
+//   - instance
+type logWriter interface {
+	instance() *log.Logger // create and return a log.logger instance
+}
+
+// instance denotes the logWriter interface implementation by the stdoutLog type.
+func (slw *stdoutLog) instance() *log.Logger {
+	if slw.stdoutLogInstance == nil {
+		slw.stdoutLogInstance = log.New(os.Stdout, "", 0)
 	}
-	return log1, log2
+	return slw.stdoutLogInstance
 }
 
-// createsimpleLog checks if a simple logger exists for a specific target. If not, it will be created accordingly.
-// Each log target is assinged its own log handler.
-func (s *simpleLog) createsimpleLog(target int) *log.Logger {
-	if _, found := s.logHandle[target]; !found {
-		// log handler doesn't exists - create it
-		switch target {
-		case stdout:
-			s.logHandle[stdout] = log.New(os.Stdout, "", 0)
-		case file:
-			s.logHandle[file] = log.New(s.fileHandle, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-			// the first 'file' log event always adds an empty line to the log file
-			s.fileHandle.WriteString("\n")
-		}
+// instance denotes the logWriter interface implementation by the fileLog type.
+func (flw *fileLog) instance() *log.Logger {
+	if flw.fileLogInstance == nil {
+		flw.fileLogInstance = log.New(flw.fileDesc, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+		flw.fileDesc.WriteString("\n")
 	}
-	return s.logHandle[target]
+	return flw.fileLogInstance
+}
+
+// service instance
+var s = new(service)
+
+// getLogWriter returns a log.Logger instance.
+func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
+	return lw.instance()
 }
 
 // setupLogFile creates and opens the log file.
-func (s *simpleLog) setupLogFile(logName string) {
+func (s *multiLog) setupLogFile(logName string) {
 	var err error
-	s.fileHandle, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
 }
 
 // changeLogFileName changes the name of the log file.
-func (s *simpleLog) changeLogFileName(newLogName string) {
-	// remove all file log handles from the logHandler map which are linked to the old log name
-	delete(s.logHandle, file)
-	s.fileHandle.Close()
+func (s *multiLog) changeLogFileName(newLogName string) {
+	s.fileDesc.Close()
 	s.setupLogFile(newLogName)
 }
 
 // run represents the log service.
 // This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
-// It listenes on the following channels:
+// It handles client requests by listening on the following channels:
 //   - time.Time
 //   - stop
 //   - data
@@ -121,22 +125,22 @@ func (s *service) run() {
 
 	// initial heartbeat to the watchdog
 	t := time.Now()
-	s.serviceHeartBeat <- t
+	w.getHeartBeatMonitor() <- t
 	heartBeat := time.NewTicker(heartBeatInterval)
 
 	// service loop
 	for {
 		select {
 		case t = <-heartBeat.C:
-			s.serviceHeartBeat <- t
+			w.heartBeatMonitor <- t
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
 			heartBeat.Stop()
-			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running
+			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running and does the right steps
 			t := time.Now()
 			t = t.Add((-1) * time.Hour)
-			s.serviceHeartBeat <- t
+			w.getHeartBeatMonitor() <- t
 			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:
@@ -144,13 +148,13 @@ func (s *service) run() {
 		case cfgMsg = <-s.config:
 			switch cfgMsg.category {
 			case initlog:
-				s.sLog.setupLogFile(cfgMsg.data)
+				s.setupLogFile(cfgMsg.data)
 				s.confirmed <- signal{}
 			case changelog:
 				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
 				s.flushMessages(len(s.data))
 				// change the log file name
-				s.sLog.changeLogFileName(cfgMsg.data)
+				s.changeLogFileName(cfgMsg.data)
 				s.confirmed <- signal{}
 			}
 		}
@@ -161,15 +165,16 @@ func (s *service) run() {
 func (s *service) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
-		stdoutLogHandle, _ := s.sLog.instance(stdout)
-		stdoutLogHandle.Print(logMsg.data)
+		stdoutLogger := s.getLogWriter(&s.stdoutLog)
+		stdoutLogger.Print(logMsg.data)
 	case file:
-		fileLogHandle, _ := s.sLog.instance(file)
-		fileLogHandle.Print(logMsg.data)
+		fileLogger := s.getLogWriter(&s.fileLog)
+		fileLogger.Print(logMsg.data)
 	case multi:
-		stdoutLogHandle, fileLogHandle := s.sLog.instance(multi)
-		stdoutLogHandle.Print(logMsg.data)
-		fileLogHandle.Print(logMsg.data)
+		stdoutLogger := s.getLogWriter(&s.stdoutLog)
+		fileLogger := s.getLogWriter(&s.fileLog)
+		stdoutLogger.Print(logMsg.data)
+		fileLogger.Print(logMsg.data)
 	}
 }
 
