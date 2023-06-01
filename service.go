@@ -92,7 +92,7 @@ func (flw *fileLog) instance() *log.Logger {
 // service instance
 var s = new(service)
 
-// getLogWriter returns a log writer instance.
+// getLogWriter returns a log.Logger instance.
 func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
 	return lw.instance()
 }
