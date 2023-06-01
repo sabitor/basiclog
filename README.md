@@ -49,8 +49,8 @@ func main() {
     simplelog.WriteToStdout("Changed log file to", log2)
 
     var wg sync.WaitGroup
-    wg.Add(4)
     for i := 1; i <= 4; i++ {
+        wg.Add(1)
         go func(count int) {
             defer wg.Done()
 	    prefix := "[GOROUTINE " + strconv.Itoa(count) + "]"
