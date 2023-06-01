@@ -71,7 +71,7 @@ type logWriter interface {
 	instance() *log.Logger
 }
 
-// stdoutLogWriter implementation of the logWriter interface.
+// instance denotes the logWriter interface implementation by the stdoutLog type.
 func (slw *stdoutLog) instance() *log.Logger {
 	if slw.stdoutLogInstance == nil {
 		slw.stdoutLogInstance = log.New(os.Stdout, "", 0)
@@ -79,7 +79,7 @@ func (slw *stdoutLog) instance() *log.Logger {
 	return slw.stdoutLogInstance
 }
 
-// fileLogWriter implementation of the logWriter interface.
+// instance denotes the logWriter interface implementation by the fileLog type.
 func (flw *fileLog) instance() *log.Logger {
 	if flw.fileLogInstance == nil {
 		flw.fileLogInstance = log.New(flw.fileDesc, "", log.Ldate|log.Ltime|log.Lmicroseconds)
