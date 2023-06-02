@@ -4,6 +4,9 @@ import (
 	"time"
 )
 
+// watchdog instance
+var w = new(watchdog)
+
 // general
 const (
 	heartBeatInterval = time.Second
@@ -16,9 +19,6 @@ type watchdog struct {
 	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
 	heartBeatMonitor       chan time.Time // the channel is used to monitor and evaluate the heartbeats sent by the log service
 }
-
-// watchdog instance
-var w = &watchdog{}
 
 // init starts the watchdog.
 // The watchdog monitors the log service and based on the monitoring results
@@ -58,14 +58,14 @@ func (w *watchdog) run(watchdogRunning chan bool) {
 	}
 }
 
-// checkService checks if the service is running (true) or if it is not running (false).
-func (w *watchdog) checkService() bool {
-	w.serviceRunning <- signal{}
-	if <-w.serviceRunningResponse {
-		return true
-	} else {
-		return false
-	}
+// getHeartBeatMonitor returns the heartBeatMonitor channel
+func (w *watchdog) getServiceRunning() chan signal {
+	return w.serviceRunning
+}
+
+// getHeartBeatMonitor returns the heartBeatMonitor channel
+func (w *watchdog) getServiceRunningResponse() chan bool {
+	return w.serviceRunningResponse
 }
 
 // getHeartBeatMonitor returns the heartBeatMonitor channel
