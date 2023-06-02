@@ -49,7 +49,7 @@ func (w *watchdog) run(watchdogRunning chan bool) {
 			timeDiff_ns = time.Until(t).Nanoseconds() * (-1)
 		case <-w.serviceRunning:
 			if timeDiff_ns == 0 || timeDiff_ns > max_service_response_delay {
-				// if the log service has not responded within a defined interval it is assumed the service isn't running
+				// if the log service has not responded within a defined interval the watchdog assumes it isn't running
 				w.serviceRunningResponse <- false
 			} else {
 				w.serviceRunningResponse <- true
