@@ -68,7 +68,7 @@ func (w *watchdog) checkService() bool {
 	}
 }
 
-// getHeartBeatMonitor returns the heartBeat channel
+// getHeartBeatMonitor returns the heartBeatMonitor channel
 func (w *watchdog) getHeartBeatMonitor() chan time.Time {
 	return w.heartBeatMonitor
 }
