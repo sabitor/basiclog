@@ -132,12 +132,12 @@ func (s *service) run() {
 	for {
 		select {
 		case t = <-heartBeat.C:
-			w.heartBeatMonitor <- t
+			w.getHeartBeatMonitor() <- t
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
 			heartBeat.Stop()
-			// set the heartbeat interval value back by one hour so the watchdog assumes the service is no longer running and does the right steps
+			// set the last heartbeat back by one hour so the watchdog assumes the service is no longer running
 			t := time.Now()
 			t = t.Add((-1) * time.Hour)
 			w.getHeartBeatMonitor() <- t
