@@ -6,7 +6,7 @@ import (
 
 // general
 const (
-	heartBeatInterval = 1000 * time.Millisecond
+	heartBeatInterval = time.Second
 	latency_factor    = 2
 )
 
@@ -38,17 +38,17 @@ func init() {
 // run detects if the log service is running.
 func (w *watchdog) run(watchdogRunning chan bool) {
 	var t time.Time = time.Now()
-	var timeDiff_ms int64
-	var max_service_response_delay int64 = latency_factor * heartBeatInterval.Milliseconds()
+	var timeDiff_ns int64
+	var max_service_response_delay int64 = latency_factor * heartBeatInterval.Nanoseconds()
 	defer close(watchdogRunning)
 
 	for {
 		select {
 		case watchdogRunning <- true:
 		case t = <-w.heartBeatMonitor:
+			timeDiff_ns = time.Until(t).Nanoseconds() * (-1)
 		case <-w.serviceRunning:
-			timeDiff_ms = time.Until(t).Milliseconds() * (-1)
-			if timeDiff_ms == 0 || timeDiff_ms > max_service_response_delay {
+			if timeDiff_ns == 0 || timeDiff_ns > max_service_response_delay {
 				// if the log service has not responded within a defined interval it is assumed the service isn't running
 				w.serviceRunningResponse <- false
 			} else {
