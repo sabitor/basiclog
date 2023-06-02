@@ -17,7 +17,7 @@ type watchdog struct {
 	heartBeatMonitor       chan time.Time // the channel is used to monitor and evaluate the heartbeats sent by the log service
 }
 
-// global watchdog instance
+// watchdog instance
 var w = &watchdog{}
 
 // init starts the watchdog.
