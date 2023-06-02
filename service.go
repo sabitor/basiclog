@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// service instance
+var s = new(service)
+
 // log targets
 const (
 	stdout = 1 << iota     // write the log record to stdout
@@ -89,9 +92,6 @@ func (flw *fileLog) instance() *log.Logger {
 	return flw.fileLogInstance
 }
 
-// service instance
-var s = new(service)
-
 // getLogWriter returns a log.Logger instance.
 func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
 	return lw.instance()
@@ -110,6 +110,16 @@ func (s *multiLog) setupLogFile(logName string) {
 func (s *multiLog) changeLogFileName(newLogName string) {
 	s.fileDesc.Close()
 	s.setupLogFile(newLogName)
+}
+
+// checkService checks if the service is running (true) or if it is not running (false).
+func (s *service) checkService() bool {
+	w.getServiceRunning() <- signal{}
+	if <-w.getServiceRunningResponse() {
+		return true
+	} else {
+		return false
+	}
 }
 
 // run represents the log service.
