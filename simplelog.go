@@ -23,7 +23,7 @@ func Startup(bufferSize int) {
 }
 
 func (s *service) startup(bufferSize int) {
-	if !w.checkService() {
+	if !s.checkService() {
 		// setup channels
 		s.data = make(chan logMessage, bufferSize)
 		s.config = make(chan configMessage)
@@ -34,7 +34,7 @@ func (s *service) startup(bufferSize int) {
 		go s.run()
 		for {
 			// wait until the service is up
-			if w.checkService() {
+			if s.checkService() {
 				break
 			}
 		}
@@ -50,7 +50,7 @@ func Shutdown() {
 }
 
 func (s *service) shutdown() {
-	if w.checkService() {
+	if s.checkService() {
 		// stop the log service
 		s.stop <- signal{}
 		<-s.confirmed
@@ -58,7 +58,7 @@ func (s *service) shutdown() {
 		// cleanup
 		s.fileDesc.Close()
 		for {
-			if !w.checkService() {
+			if !s.checkService() {
 				break
 			}
 		}
@@ -72,7 +72,7 @@ func InitLogFile(logName string) {
 	s.initLogFile(logName)
 }
 func (s *service) initLogFile(logName string) {
-	if w.checkService() {
+	if s.checkService() {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
 		<-s.confirmed
@@ -89,7 +89,7 @@ func ChangeLogName(newLogName string) {
 }
 
 func (s *service) changeLogName(newLogName string) {
-	if w.checkService() {
+	if s.checkService() {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
 		<-s.confirmed
@@ -104,7 +104,7 @@ func WriteToStdout(values ...any) {
 }
 
 func (s *service) writeToStdout(values ...any) {
-	if w.checkService() {
+	if s.checkService() {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
@@ -118,7 +118,7 @@ func WriteToFile(values ...any) {
 }
 
 func (s *service) writeToFile(values ...any) {
-	if w.checkService() {
+	if s.checkService() {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
@@ -136,7 +136,7 @@ func WriteToMulti(values ...any) {
 }
 
 func (s *service) writeToMulti(values ...any) {
-	if w.checkService() {
+	if s.checkService() {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
