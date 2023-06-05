@@ -35,7 +35,11 @@ func init() {
 	}
 }
 
-// run detects if the log service is running.
+// run represents the watchdog.
+// This utility function runs in a dedicated goroutine and is started when the init function is implicitly called.
+// It handles requests by listening on the following channels:
+//   - heartBeatMonitor
+//   - serviceRunning
 func (w *watchdog) run(watchdogRunning chan bool) {
 	var t time.Time = time.Now()
 	var timeDiff_ns int64

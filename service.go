@@ -123,7 +123,7 @@ func (s *service) checkService() bool {
 }
 
 // run represents the log service.
-// This service function runs in a dedicated goroutine and will be started as part of the log service startup process.
+// This service function runs in a dedicated goroutine and is started as part of the log service startup process.
 // It handles client requests by listening on the following channels:
 //   - time.Time
 //   - stop
