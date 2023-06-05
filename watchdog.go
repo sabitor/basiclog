@@ -35,7 +35,7 @@ func init() {
 	}
 }
 
-// run represents the watchdog.
+// run represents the watchdog service.
 // This utility function runs in a dedicated goroutine and is started when the init function is implicitly called.
 // It handles requests by listening on the following channels:
 //   - heartBeatMonitor
