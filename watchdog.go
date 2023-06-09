@@ -62,12 +62,12 @@ func (w *watchdog) run(watchdogRunning chan bool) {
 	}
 }
 
-// getHeartBeatMonitor returns the heartBeatMonitor channel
+// getServiceRunning returns the serviceRunning channel
 func (w *watchdog) getServiceRunning() chan signal {
 	return w.serviceRunning
 }
 
-// getHeartBeatMonitor returns the heartBeatMonitor channel
+// getServiceRunningResponse returns the serviceRunningResponse channel
 func (w *watchdog) getServiceRunningResponse() chan bool {
 	return w.serviceRunningResponse
 }
