@@ -24,15 +24,10 @@ func Startup(bufferSize int) {
 
 func (s *service) startup(bufferSize int) {
 	if !s.checkServiceState(running) {
-		s.initialize((bufferSize))
 		// start the log service
+		s.setup((bufferSize))
 		go s.run()
-		for {
-			// wait until the service is up
-			if s.checkServiceState(running) {
-				break
-			}
-		}
+		s.waitForService(running)
 	} else {
 		panic(m002)
 	}
@@ -50,12 +45,8 @@ func (s *service) shutdown() {
 		s.stop <- signal{}
 		<-s.confirmed
 		s.cleanup()
-		for {
-			// wait until the service is up
-			if !s.checkServiceState(running) {
-				break
-			}
-		}
+		s.waitForService(stopped)
+		c.resetControl <- signal{}
 	} else {
 		panic(m003)
 	}

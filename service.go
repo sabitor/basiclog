@@ -128,13 +128,22 @@ func (s *service) setServiceState(state int) {
 	c.setServiceStateChan() <- state
 }
 
-// initialize sets up structures and allocates resources required by the log service.
-func (s *service) initialize(bufferSize int) {
+// setup sets up structures and allocates resources required by the log service.
+func (s *service) setup(bufferSize int) {
 	// setup channels
 	s.data = make(chan logMessage, bufferSize)
 	s.config = make(chan configMessage)
 	s.stop = make(chan signal)
 	s.confirmed = make(chan signal)
+}
+
+func (s *service) waitForService(state int) {
+	for {
+		// wait until the service state is true
+		if s.checkServiceState(state) {
+			break
+		}
+	}
 }
 
 // cleanup releases resources which were required by the log service.
