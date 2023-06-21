@@ -1,4 +1,4 @@
-// Package simpleLog is a logging package with the focus on simplicity and
+// Package simplelog is a logging package with the focus on simplicity and
 // ease of use. It utilizes the log package from the standard library with
 // some advanced features.
 // Once started, the simple logger runs as a service and listens for logging
@@ -23,18 +23,13 @@ func Startup(bufferSize int) {
 }
 
 func (s *service) startup(bufferSize int) {
-	if !s.checkService() {
-		// setup channels
-		s.data = make(chan logMessage, bufferSize)
-		s.config = make(chan configMessage)
-		s.stop = make(chan signal)
-		s.confirmed = make(chan signal)
-
+	if !s.checkServiceState(running) {
+		s.initialize((bufferSize))
 		// start the log service
 		go s.run()
 		for {
 			// wait until the service is up
-			if s.checkService() {
+			if s.checkServiceState(running) {
 				break
 			}
 		}
@@ -50,15 +45,14 @@ func Shutdown() {
 }
 
 func (s *service) shutdown() {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		// stop the log service
 		s.stop <- signal{}
 		<-s.confirmed
-
-		// cleanup
-		s.fileDesc.Close()
+		s.cleanup()
 		for {
-			if !s.checkService() {
+			// wait until the service is up
+			if !s.checkServiceState(running) {
 				break
 			}
 		}
@@ -72,7 +66,7 @@ func InitLogFile(logName string) {
 	s.initLogFile(logName)
 }
 func (s *service) initLogFile(logName string) {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
 		<-s.confirmed
@@ -89,7 +83,7 @@ func ChangeLogName(newLogName string) {
 }
 
 func (s *service) changeLogName(newLogName string) {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
 		<-s.confirmed
@@ -104,7 +98,7 @@ func WriteToStdout(values ...any) {
 }
 
 func (s *service) writeToStdout(values ...any) {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
@@ -118,7 +112,7 @@ func WriteToFile(values ...any) {
 }
 
 func (s *service) writeToFile(values ...any) {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
@@ -136,7 +130,7 @@ func WriteToMulti(values ...any) {
 }
 
 func (s *service) writeToMulti(values ...any) {
-	if s.checkService() {
+	if s.checkServiceState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
