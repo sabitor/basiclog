@@ -3,7 +3,6 @@ package simplelog
 import (
 	"log"
 	"os"
-	"time"
 )
 
 // service instance
@@ -14,6 +13,12 @@ const (
 	stdout = 1 << iota     // write the log record to stdout
 	file                   // write the log record to the log file
 	multi  = stdout | file // write the log record to stdout and to the log file
+)
+
+// service states
+const (
+	stopped = 1 << iota // the service is stopped and cannot process log requests
+	running             // the service is running
 )
 
 // configuration categories
@@ -112,20 +117,34 @@ func (s *multiLog) changeLogFileName(newLogName string) {
 	s.setupLogFile(newLogName)
 }
 
-// checkService checks if the service is running (true) or if it is not running (false).
-func (s *service) checkService() bool {
-	w.getServiceRunning() <- signal{}
-	if <-w.getServiceRunningResponse() {
-		return true
-	} else {
-		return false
-	}
+// checkServiceState checks if the service has set the specified state.
+func (s *service) checkServiceState(state int) bool {
+	c.checkServiceStateChan() <- state
+	return <-c.checkServiceStateResponseChan()
+}
+
+// setServiceState sets the state of the log service.
+func (s *service) setServiceState(state int) {
+	c.setServiceStateChan() <- state
+}
+
+// initialize sets up structures and allocates resources required by the log service.
+func (s *service) initialize(bufferSize int) {
+	// setup channels
+	s.data = make(chan logMessage, bufferSize)
+	s.config = make(chan configMessage)
+	s.stop = make(chan signal)
+	s.confirmed = make(chan signal)
+}
+
+// cleanup releases resources which were required by the log service.
+func (s *service) cleanup() {
+	s.fileDesc.Close()
 }
 
 // run represents the log service.
 // This service function runs in a dedicated goroutine and is started as part of the log service startup process.
 // It handles client requests by listening on the following channels:
-//   - time.Time
 //   - stop
 //   - data
 //   - config
@@ -133,24 +152,15 @@ func (s *service) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	// initial heartbeat to the watchdog
-	t := time.Now()
-	w.getHeartBeatMonitor() <- t
-	heartBeat := time.NewTicker(heartBeatInterval)
+	s.setServiceState(running)
+	defer s.setServiceState(stopped)
 
 	// service loop
 	for {
 		select {
-		case t = <-heartBeat.C:
-			w.getHeartBeatMonitor() <- t
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
-			heartBeat.Stop()
-			// set the last heartbeat back by one hour so the watchdog assumes the service is no longer running
-			t := time.Now()
-			t = t.Add((-1) * time.Hour)
-			w.getHeartBeatMonitor() <- t
 			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:
