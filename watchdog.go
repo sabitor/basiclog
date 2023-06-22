@@ -1,78 +1,76 @@
 package simplelog
 
-import (
-	"time"
-)
+// control instance
+var c = new(control)
 
-// watchdog instance
-var w = new(watchdog)
-
-// general
-const (
-	heartBeatInterval = time.Second
-	latency_factor    = 2
-)
-
-// watchdog is a structure to watch and handle the communication with the assigned log service.
-type watchdog struct {
-	serviceRunning         chan signal    // the channel for sending a serviceRunning signal to the watchdog
-	serviceRunningResponse chan bool      // the channel for sending a serviceRunningResponse message to the caller
-	heartBeatMonitor       chan time.Time // the channel is used to monitor and evaluate the heartbeats sent by the log service
+// control is a structure to control and handle the communication with the log service.
+type control struct {
+	checkServiceState         chan int    // the channel for receiving a state check request from the caller
+	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
+	serviceState              chan int    // the channel for receiving a state change request from the caller
+	resetControl              chan signal // the channel for receiving a control reset request from the caller
 }
 
-// init starts the watchdog.
-// The watchdog monitors the log service and based on the monitoring results
-// it can answer questions regarding the availability of this service.
+// init starts the control.
+// The control monitors the log service and can answer questions regarding the state of the service.
 func init() {
-	w.serviceRunning = make(chan signal, 1)
-	w.serviceRunningResponse = make(chan bool, 1)
-	w.heartBeatMonitor = make(chan time.Time)
+	c.checkServiceState = make(chan int, 1)
+	c.checkServiceStateResponse = make(chan bool, 1)
+	c.serviceState = make(chan int)
+	c.resetControl = make(chan signal)
 
-	watchdogRunning := make(chan bool)
-	go w.run(watchdogRunning)
-	if !<-watchdogRunning {
-		panic("watchdog is not running")
+	controlRunning := make(chan bool)
+	go c.run(controlRunning)
+	if !<-controlRunning {
+		panic("control is not running")
 	}
 }
 
-// run represents the watchdog service.
+// run represents the control service.
 // This utility function runs in a dedicated goroutine and is started when the init function is implicitly called.
 // It handles requests by listening on the following channels:
-//   - heartBeatMonitor
-//   - serviceRunning
-func (w *watchdog) run(watchdogRunning chan bool) {
-	var t time.Time = time.Now()
-	var timeDiff_ns int64
-	var max_service_response_delay int64 = latency_factor * heartBeatInterval.Nanoseconds()
-	defer close(watchdogRunning)
+//   - resetControl
+//   - serviceState
+//   - checkServiceState
+func (c *control) run(controlRunning chan bool) {
+	var newState int
+	totalState := newState
 
 	for {
 		select {
-		case watchdogRunning <- true:
-		case t = <-w.heartBeatMonitor:
-			timeDiff_ns = time.Until(t).Nanoseconds() * (-1)
-		case <-w.serviceRunning:
-			if timeDiff_ns == 0 || timeDiff_ns > max_service_response_delay {
-				// if the log service has not responded within a defined interval the watchdog assumes it isn't running
-				w.serviceRunningResponse <- false
+		case controlRunning <- true:
+		case <-c.resetControl:
+			newState = 0
+			totalState = newState
+		case newState = <-c.serviceState:
+			if newState == stopped {
+				// unset all other states
+				totalState = newState
 			} else {
-				w.serviceRunningResponse <- true
+				// add new state to the total state
+				totalState |= newState
+			}
+		case state := <-c.checkServiceState:
+			if totalState&state == state {
+				c.checkServiceStateResponse <- true
+			} else {
+				c.checkServiceStateResponse <- false
 			}
 		}
 	}
 }
 
-// getServiceRunning returns the serviceRunning channel
-func (w *watchdog) getServiceRunning() chan signal {
-	return w.serviceRunning
+// getCheckServiceStateChan returns the checkServiceState channel
+func (c *control) checkServiceStateChan() chan int {
+	return c.checkServiceState
 }
 
-// getServiceRunningResponse returns the serviceRunningResponse channel
-func (w *watchdog) getServiceRunningResponse() chan bool {
-	return w.serviceRunningResponse
+// getCheckServiceStateResponseChan returns the checkServiceStateResponse channel
+func (c *control) checkServiceStateResponseChan() chan bool {
+	return c.checkServiceStateResponse
 }
 
-// getHeartBeatMonitor returns the heartBeatMonitor channel
-func (w *watchdog) getHeartBeatMonitor() chan time.Time {
-	return w.heartBeatMonitor
+// setServiceStateChan returns the serviceState channel
+func (c *control) setServiceStateChan() chan int {
+	return c.serviceState
 }
