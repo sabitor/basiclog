@@ -10,12 +10,18 @@ var s = new(service)
 
 // log targets
 const (
-	stdout = 1 << iota     // write the log record to stdout
-	file                   // write the log record to the log file
-	multi  = stdout | file // write the log record to stdout and to the log file
+	stdout = iota // write the log record to stdout
+	file          // write the log record to the log file
+	multi         // write the log record to stdout and to the log file
 )
 
-// service states
+// service actions
+const (
+	start = iota
+	stop
+)
+
+// service states bitmask
 const (
 	stopped = 1 << iota // the service is stopped and cannot process log requests
 	running             // the service is running
@@ -25,6 +31,13 @@ const (
 const (
 	initlog   = iota // initializes a log file
 	changelog        // change the log file name
+)
+
+// service properties
+const (
+	logbuffer = iota // defines the buffer size of the logMessage channel
+	a
+	b
 )
 
 // signal to confirm actions across channels
@@ -42,8 +55,9 @@ type configMessage struct {
 	data     string // the data, which will be processed by a config task
 }
 
-// service is the instance to control and handle the way of log workflows.
+// service is structure used to handle workflows triggered by the simplelog API.
 type service struct {
+	attribute map[int]any
 	logFactory
 
 	config    chan configMessage // the channel for sending config messages to the log service
@@ -117,38 +131,12 @@ func (s *multiLog) changeLogFileName(newLogName string) {
 	s.setupLogFile(newLogName)
 }
 
-// checkServiceState checks if the service has set the specified state.
-func (s *service) checkServiceState(state int) bool {
-	c.checkServiceStateChan() <- state
-	return <-c.checkServiceStateResponseChan()
-}
-
-// setServiceState sets the state of the log service.
-func (s *service) setServiceState(state int) {
-	c.setServiceStateChan() <- state
-}
-
-// setup sets up structures and allocates resources required by the log service.
-func (s *service) setup(bufferSize int) {
-	// setup channels
-	s.data = make(chan logMessage, bufferSize)
-	s.config = make(chan configMessage)
-	s.stop = make(chan signal)
-	s.confirmed = make(chan signal)
-}
-
-func (s *service) waitForService(state int) {
-	for {
-		// wait until the service state is true
-		if s.checkServiceState(state) {
-			break
-		}
+// setAttribut sets a log service attribute.
+func (s *service) setAttribut(key int, value any) {
+	if s.attribute == nil {
+		s.attribute = make(map[int]any)
 	}
-}
-
-// cleanup releases resources which were required by the log service.
-func (s *service) cleanup() {
-	s.fileDesc.Close()
+	s.attribute[key] = value
 }
 
 // run represents the log service.
@@ -161,16 +149,14 @@ func (s *service) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	s.setServiceState(running)
-	defer s.setServiceState(stopped)
+	c.setServiceState(running)
+	defer c.setServiceState(stopped)
 
-	// service loop
 	for {
 		select {
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
-			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)

@@ -19,15 +19,10 @@ const (
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 // The log service runs in its own goroutine.
 func Startup(bufferSize int) {
-	s.startup(bufferSize)
-}
-
-func (s *service) startup(bufferSize int) {
-	if !s.checkServiceState(running) {
+	if !c.testServiceState(running) {
 		// start the log service
-		s.setup((bufferSize))
-		go s.run()
-		s.waitForService(running)
+		s.setAttribut(logbuffer, 10)
+		c.service(start)
 	} else {
 		panic(m002)
 	}
@@ -36,17 +31,9 @@ func (s *service) startup(bufferSize int) {
 // Shutdown stops the log service and does some cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 func Shutdown() {
-	s.shutdown()
-}
-
-func (s *service) shutdown() {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		// stop the log service
-		s.stop <- signal{}
-		<-s.confirmed
-		s.cleanup()
-		s.waitForService(stopped)
-		c.resetControl <- signal{}
+		c.service(stop)
 	} else {
 		panic(m003)
 	}
@@ -54,10 +41,7 @@ func (s *service) shutdown() {
 
 // InitLogFile initializes the log file.
 func InitLogFile(logName string) {
-	s.initLogFile(logName)
-}
-func (s *service) initLogFile(logName string) {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
 		<-s.confirmed
@@ -70,11 +54,7 @@ func (s *service) initLogFile(logName string) {
 // As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
 // The log service doesn't need to be stopped for this task.
 func ChangeLogName(newLogName string) {
-	s.changeLogName(newLogName)
-}
-
-func (s *service) changeLogName(newLogName string) {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
 		<-s.confirmed
@@ -85,11 +65,7 @@ func (s *service) changeLogName(newLogName string) {
 
 // WriteToStdout writes a log message to stdout.
 func WriteToStdout(values ...any) {
-	s.writeToStdout(values)
-}
-
-func (s *service) writeToStdout(values ...any) {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
@@ -99,11 +75,7 @@ func (s *service) writeToStdout(values ...any) {
 
 // WriteToFile writes a log message to a log file.
 func WriteToFile(values ...any) {
-	s.writeToFile(values)
-}
-
-func (s *service) writeToFile(values ...any) {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
@@ -115,13 +87,8 @@ func (s *service) writeToFile(values ...any) {
 }
 
 // WriteToMulti writes a log message to multiple targets.
-// Currently supported targets are stdout and file.
 func WriteToMulti(values ...any) {
-	s.writeToMulti(values)
-}
-
-func (s *service) writeToMulti(values ...any) {
-	if s.checkServiceState(running) {
+	if c.testServiceState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
