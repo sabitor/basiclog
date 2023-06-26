@@ -19,7 +19,7 @@ const (
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 // The log service runs in its own goroutine.
 func Startup(bufferSize int) {
-	if !c.testServiceState(running) {
+	if !c.checkState(running) {
 		// start the log service
 		s.setAttribut(logbuffer, 10)
 		c.service(start)
@@ -31,7 +31,7 @@ func Startup(bufferSize int) {
 // Shutdown stops the log service and does some cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 func Shutdown() {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		// stop the log service
 		c.service(stop)
 	} else {
@@ -41,7 +41,7 @@ func Shutdown() {
 
 // InitLogFile initializes the log file.
 func InitLogFile(logName string) {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		// initialize the log file
 		s.config <- configMessage{initlog, logName}
 		<-s.confirmed
@@ -54,7 +54,7 @@ func InitLogFile(logName string) {
 // As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
 // The log service doesn't need to be stopped for this task.
 func ChangeLogName(newLogName string) {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		// change the log name
 		s.config <- configMessage{changelog, newLogName}
 		<-s.confirmed
@@ -65,7 +65,7 @@ func ChangeLogName(newLogName string) {
 
 // WriteToStdout writes a log message to stdout.
 func WriteToStdout(values ...any) {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		msg := parseValues(values)
 		s.data <- logMessage{stdout, msg}
 	} else {
@@ -75,7 +75,7 @@ func WriteToStdout(values ...any) {
 
 // WriteToFile writes a log message to a log file.
 func WriteToFile(values ...any) {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}
@@ -88,7 +88,7 @@ func WriteToFile(values ...any) {
 
 // WriteToMulti writes a log message to multiple targets.
 func WriteToMulti(values ...any) {
-	if c.testServiceState(running) {
+	if c.checkState(running) {
 		if s.fileDesc == nil {
 			panic(m001)
 		}

@@ -6,7 +6,7 @@ import (
 )
 
 // service instance
-var s = new(service)
+var s = new(logService)
 
 // log targets
 const (
@@ -15,13 +15,13 @@ const (
 	multi         // write the log record to stdout and to the log file
 )
 
-// service actions
+// log service actions
 const (
 	start = iota
 	stop
 )
 
-// service states bitmask
+// log service states bitmask
 const (
 	stopped = 1 << iota // the service is stopped and cannot process log requests
 	running             // the service is running
@@ -33,11 +33,9 @@ const (
 	changelog        // change the log file name
 )
 
-// service properties
+// log service properties
 const (
 	logbuffer = iota // defines the buffer size of the logMessage channel
-	a
-	b
 )
 
 // signal to confirm actions across channels
@@ -55,9 +53,8 @@ type configMessage struct {
 	data     string // the data, which will be processed by a config task
 }
 
-// service is structure used to handle workflows triggered by the simplelog API.
-type service struct {
-	attribute map[int]any
+// logService is structure used to handle workflows triggered by the simplelog API.
+type logService struct {
 	logFactory
 
 	config    chan configMessage // the channel for sending config messages to the log service
@@ -67,8 +64,9 @@ type service struct {
 
 // logFactory is the base data collection to support logging to multiple targets.
 type logFactory struct {
-	data     chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
-	multiLog                 // the multiLog supports logging to stdout and file
+	attribute map[int]any     // the map which contains the log factory attributes
+	data      chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
+	multiLog                  // the multiLog supports logging to stdout and file
 }
 
 // stdoutLogWriter is a data collection to support logging to stdout.
@@ -132,7 +130,7 @@ func (s *multiLog) changeLogFileName(newLogName string) {
 }
 
 // setAttribut sets a log service attribute.
-func (s *service) setAttribut(key int, value any) {
+func (s *logService) setAttribut(key int, value any) {
 	if s.attribute == nil {
 		s.attribute = make(map[int]any)
 	}
@@ -145,12 +143,12 @@ func (s *service) setAttribut(key int, value any) {
 //   - stop
 //   - data
 //   - config
-func (s *service) run() {
+func (s *logService) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	c.setServiceState(running)
-	defer c.setServiceState(stopped)
+	c.setState(running)
+	defer c.setState(stopped)
 
 	for {
 		select {
@@ -177,7 +175,7 @@ func (s *service) run() {
 }
 
 // writeMessage writes data of log messages to a dedicated target.
-func (s *service) writeMessage(logMsg logMessage) {
+func (s *logService) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
 		stdoutLogger := s.getLogWriter(&s.stdoutLog)
@@ -196,7 +194,7 @@ func (s *service) writeMessage(logMsg logMessage) {
 // flushMessages flushes(writes) a number of messages to a dedicated target.
 // The messages will be read from a buffered channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
-func (s *service) flushMessages(numMessages int) {
+func (s *logService) flushMessages(numMessages int) {
 	for numMessages > 0 {
 		s.writeMessage(<-s.data)
 		numMessages--
