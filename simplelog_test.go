@@ -11,14 +11,14 @@ import (
 func Test_service_startup(t *testing.T) {
 	Startup(1)
 
-	if a := s.checkServiceState(running); a != true {
+	if a := c.checkState(running); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
 		s.stop <- signal{}
-		<-s.confirmed
+		// <-s.confirmed
 		for {
 			// wait until the service is up
-			if !s.checkServiceState(running) {
+			if !c.checkState(running) {
 				break
 			}
 		}
@@ -29,7 +29,7 @@ func Test_service_shutdown(t *testing.T) {
 	Startup(1)
 	Shutdown()
 
-	if a := s.checkServiceState(running); a == true {
+	if a := c.checkState(running); a == true {
 		t.Error("Expected state false but got", a)
 		s.stop <- signal{}
 		<-s.confirmed
@@ -103,7 +103,7 @@ func Test_service_changeLogFile(t *testing.T) {
 }
 
 func Test_service_writeToStdout(t *testing.T) {
-	s = new(service) // reset service instance
+	s = new(logService) // reset service instance
 	stdOut := os.Stdout
 
 	r, w, _ := os.Pipe()
@@ -126,7 +126,7 @@ func Test_service_writeToStdout(t *testing.T) {
 }
 
 func Test_service_writeToFile(t *testing.T) {
-	s = new(service) // reset service instance
+	s = new(logService) // reset service instance
 	logFile := "test1.log"
 
 	if _, err := os.Stat(logFile); err == nil {
@@ -150,7 +150,7 @@ func Test_service_writeToFile(t *testing.T) {
 }
 
 func Test_service_writeToMulti(t *testing.T) {
-	s = new(service) // reset service instance
+	s = new(logService) // reset service instance
 	stdOut := os.Stdout
 	logFile := "test2.log"
 

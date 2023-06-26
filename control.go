@@ -1,23 +1,31 @@
 package simplelog
 
+import (
+	"strconv"
+)
+
 // control instance
 var c = new(control)
 
-// control is a structure to control and handle the communication with the log service.
+// control is a structure used to control the log service and log service workflows.
 type control struct {
 	checkServiceState         chan int    // the channel for receiving a state check request from the caller
 	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
-	serviceState              chan int    // the channel for receiving a state change request from the caller
-	resetControl              chan signal // the channel for receiving a control reset request from the caller
+	setServiceState           chan int    // the channel for receiving a state change request from the caller
+	setServiceStateResponse   chan signal // the channel for sending a boolean response to the caller
+	execServiceAction         chan int    // TBD
+	execServiceActionResponse chan bool   // TBD
 }
 
 // init starts the control.
 // The control monitors the log service and can answer questions regarding the state of the service.
 func init() {
-	c.checkServiceState = make(chan int, 1)
-	c.checkServiceStateResponse = make(chan bool, 1)
-	c.serviceState = make(chan int)
-	c.resetControl = make(chan signal)
+	c.checkServiceState = make(chan int)
+	c.checkServiceStateResponse = make(chan bool)
+	c.setServiceState = make(chan int)
+	c.setServiceStateResponse = make(chan signal)
+	c.execServiceAction = make(chan int)
+	c.execServiceActionResponse = make(chan bool)
 
 	controlRunning := make(chan bool)
 	go c.run(controlRunning)
@@ -29,20 +37,60 @@ func init() {
 // run represents the control service.
 // This utility function runs in a dedicated goroutine and is started when the init function is implicitly called.
 // It handles requests by listening on the following channels:
-//   - resetControl
-//   - serviceState
+//   - execServiceAction
+//   - setServiceState
 //   - checkServiceState
 func (c *control) run(controlRunning chan bool) {
-	var newState int
-	totalState := newState
+	var newState, totalState int
 
 	for {
 		select {
 		case controlRunning <- true:
-		case <-c.resetControl:
-			newState = 0
-			totalState = newState
-		case newState = <-c.serviceState:
+		case action := <-c.execServiceAction:
+			switch action {
+			case start:
+				// allocate log service channels
+				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
+				s.data = make(chan logMessage, buf)
+				s.config = make(chan configMessage)
+				s.stop = make(chan signal)
+				s.confirmed = make(chan signal)
+
+				// reset state attribute (after the log service has restarted)
+				if totalState == stopped {
+					totalState = 0
+				}
+
+				// start log service
+				go s.run()
+				// reply to the caller when the service has started
+				go func() {
+					for {
+						// wait until the service is running
+						if c.checkState(running) {
+							break
+						}
+					}
+					c.execServiceActionResponse <- true
+				}()
+			case stop:
+				// stop log service
+				s.stop <- signal{}
+				// reply to the caller when the service has stopped
+				go func() {
+					for {
+						// wait until the service is stopped
+						if c.checkState(stopped) {
+							break
+						}
+					}
+					c.execServiceActionResponse <- true
+
+					// cleanup log service resources
+					s.fileDesc.Close()
+				}()
+			}
+		case newState = <-c.setServiceState:
 			if newState == stopped {
 				// unset all other states
 				totalState = newState
@@ -50,6 +98,7 @@ func (c *control) run(controlRunning chan bool) {
 				// add new state to the total state
 				totalState |= newState
 			}
+			c.setServiceStateResponse <- signal{}
 		case state := <-c.checkServiceState:
 			if totalState&state == state {
 				c.checkServiceStateResponse <- true
@@ -60,17 +109,20 @@ func (c *control) run(controlRunning chan bool) {
 	}
 }
 
-// getCheckServiceStateChan returns the checkServiceState channel
-func (c *control) checkServiceStateChan() chan int {
-	return c.checkServiceState
+// service handles actions to be processed by the log service.
+func (c *control) service(action int) bool {
+	c.execServiceAction <- action
+	return <-c.execServiceActionResponse
 }
 
-// getCheckServiceStateResponseChan returns the checkServiceStateResponse channel
-func (c *control) checkServiceStateResponseChan() chan bool {
-	return c.checkServiceStateResponse
+// checkState checks if the service has set the specified state.
+func (c *control) checkState(state int) bool {
+	c.checkServiceState <- state
+	return <-c.checkServiceStateResponse
 }
 
-// setServiceStateChan returns the serviceState channel
-func (c *control) setServiceStateChan() chan int {
-	return c.serviceState
+// setState sets the state of the log service.
+func (c *control) setState(state int) signal {
+	c.setServiceState <- state
+	return <-c.setServiceStateResponse
 }

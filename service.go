@@ -6,16 +6,22 @@ import (
 )
 
 // service instance
-var s = new(service)
+var s = new(logService)
 
 // log targets
 const (
-	stdout = 1 << iota     // write the log record to stdout
-	file                   // write the log record to the log file
-	multi  = stdout | file // write the log record to stdout and to the log file
+	stdout = iota // write the log record to stdout
+	file          // write the log record to the log file
+	multi         // write the log record to stdout and to the log file
 )
 
-// service states
+// log service actions
+const (
+	start = iota
+	stop
+)
+
+// log service states bitmask
 const (
 	stopped = 1 << iota // the service is stopped and cannot process log requests
 	running             // the service is running
@@ -25,6 +31,11 @@ const (
 const (
 	initlog   = iota // initializes a log file
 	changelog        // change the log file name
+)
+
+// log service properties
+const (
+	logbuffer = iota // defines the buffer size of the logMessage channel
 )
 
 // signal to confirm actions across channels
@@ -42,8 +53,8 @@ type configMessage struct {
 	data     string // the data, which will be processed by a config task
 }
 
-// service is the instance to control and handle the way of log workflows.
-type service struct {
+// logService is structure used to handle workflows triggered by the simplelog API.
+type logService struct {
 	logFactory
 
 	config    chan configMessage // the channel for sending config messages to the log service
@@ -53,8 +64,9 @@ type service struct {
 
 // logFactory is the base data collection to support logging to multiple targets.
 type logFactory struct {
-	data     chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
-	multiLog                 // the multiLog supports logging to stdout and file
+	attribute map[int]any     // the map which contains the log factory attributes
+	data      chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
+	multiLog                  // the multiLog supports logging to stdout and file
 }
 
 // stdoutLogWriter is a data collection to support logging to stdout.
@@ -117,38 +129,12 @@ func (s *multiLog) changeLogFileName(newLogName string) {
 	s.setupLogFile(newLogName)
 }
 
-// checkServiceState checks if the service has set the specified state.
-func (s *service) checkServiceState(state int) bool {
-	c.checkServiceStateChan() <- state
-	return <-c.checkServiceStateResponseChan()
-}
-
-// setServiceState sets the state of the log service.
-func (s *service) setServiceState(state int) {
-	c.setServiceStateChan() <- state
-}
-
-// setup sets up structures and allocates resources required by the log service.
-func (s *service) setup(bufferSize int) {
-	// setup channels
-	s.data = make(chan logMessage, bufferSize)
-	s.config = make(chan configMessage)
-	s.stop = make(chan signal)
-	s.confirmed = make(chan signal)
-}
-
-func (s *service) waitForService(state int) {
-	for {
-		// wait until the service state is true
-		if s.checkServiceState(state) {
-			break
-		}
+// setAttribut sets a log service attribute.
+func (s *logService) setAttribut(key int, value any) {
+	if s.attribute == nil {
+		s.attribute = make(map[int]any)
 	}
-}
-
-// cleanup releases resources which were required by the log service.
-func (s *service) cleanup() {
-	s.fileDesc.Close()
+	s.attribute[key] = value
 }
 
 // run represents the log service.
@@ -157,20 +143,18 @@ func (s *service) cleanup() {
 //   - stop
 //   - data
 //   - config
-func (s *service) run() {
+func (s *logService) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
-	s.setServiceState(running)
-	defer s.setServiceState(stopped)
+	c.setState(running)
+	defer c.setState(stopped)
 
-	// service loop
 	for {
 		select {
 		case <-s.stop:
 			// write all messages which are still in the data channel and have not been written yet
 			s.flushMessages(len(s.data))
-			s.confirmed <- signal{}
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)
@@ -191,7 +175,7 @@ func (s *service) run() {
 }
 
 // writeMessage writes data of log messages to a dedicated target.
-func (s *service) writeMessage(logMsg logMessage) {
+func (s *logService) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
 		stdoutLogger := s.getLogWriter(&s.stdoutLog)
@@ -210,7 +194,7 @@ func (s *service) writeMessage(logMsg logMessage) {
 // flushMessages flushes(writes) a number of messages to a dedicated target.
 // The messages will be read from a buffered channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
-func (s *service) flushMessages(numMessages int) {
+func (s *logService) flushMessages(numMessages int) {
 	for numMessages > 0 {
 		s.writeMessage(<-s.data)
 		numMessages--
