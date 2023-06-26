@@ -126,6 +126,7 @@ func (s *multiLog) setupLogFile(logName string) {
 // changeLogFileName changes the name of the log file.
 func (s *multiLog) changeLogFileName(newLogName string) {
 	s.fileDesc.Close()
+	s.fileLogInstance = nil
 	s.setupLogFile(newLogName)
 }
 

@@ -14,7 +14,7 @@ type control struct {
 	setServiceState           chan int    // the channel for receiving a state change request from the caller
 	setServiceStateResponse   chan signal // the channel for sending a boolean response to the caller
 	execServiceAction         chan int    // TBD
-	execServiceActionResponse chan bool   // TBD
+	execServiceActionResponse chan signal // TBD
 }
 
 // init starts the control.
@@ -25,7 +25,7 @@ func init() {
 	c.setServiceState = make(chan int)
 	c.setServiceStateResponse = make(chan signal)
 	c.execServiceAction = make(chan int)
-	c.execServiceActionResponse = make(chan bool)
+	c.execServiceActionResponse = make(chan signal)
 
 	controlRunning := make(chan bool)
 	go c.run(controlRunning)
@@ -71,7 +71,7 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					c.execServiceActionResponse <- true
+					c.execServiceActionResponse <- signal{}
 				}()
 			case stop:
 				// stop log service
@@ -84,7 +84,7 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					c.execServiceActionResponse <- true
+					c.execServiceActionResponse <- signal{}
 
 					// cleanup log service resources
 					s.fileDesc.Close()
@@ -110,7 +110,7 @@ func (c *control) run(controlRunning chan bool) {
 }
 
 // service handles actions to be processed by the log service.
-func (c *control) service(action int) bool {
+func (c *control) service(action int) signal {
 	c.execServiceAction <- action
 	return <-c.execServiceActionResponse
 }
