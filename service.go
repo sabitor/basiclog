@@ -19,6 +19,8 @@ const (
 const (
 	start = iota
 	stop
+	initlog
+	changelog
 )
 
 // log service states bitmask
@@ -27,15 +29,10 @@ const (
 	running             // the service is running
 )
 
-// configuration categories
-const (
-	initlog   = iota // initializes a log file
-	changelog        // change the log file name
-)
-
-// log service properties
+// log service attributes
 const (
 	logbuffer = iota // defines the buffer size of the logMessage channel
+	logfilename
 )
 
 // signal to confirm actions across channels
@@ -49,17 +46,16 @@ type logMessage struct {
 
 // a configMessage represents the config message which will be sent to the log service.
 type configMessage struct {
-	category int    // the configuration category bits, which are used to trigger certain config tasks by the log service, e.g. setlogname, changelogname, and so on.
-	data     string // the data, which will be processed by a config task
+	action int    // the configuration action, which is used to trigger certain config tasks by the log service
+	data   string // the data, which will be used by the config task
 }
 
 // logService is structure used to handle workflows triggered by the simplelog API.
 type logService struct {
 	logFactory
 
-	config    chan configMessage // the channel for sending config messages to the log service
-	confirmed chan signal        // the channel for sending a confirmation signal to the caller
-	stop      chan signal        // the channel for sending a stop signal to the log service
+	config chan configMessage // the channel for sending config messages to the log service
+	stop   chan signal        // the channel for sending a stop signal to the log service
 }
 
 // logFactory is the base data collection to support logging to multiple targets.
@@ -102,6 +98,9 @@ func (slw *stdoutLog) instance() *log.Logger {
 
 // instance denotes the logWriter interface implementation by the fileLog type.
 func (flw *fileLog) instance() *log.Logger {
+	if s.fileDesc == nil {
+		panic(m001)
+	}
 	if flw.fileLogInstance == nil {
 		flw.fileLogInstance = log.New(flw.fileDesc, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 		flw.fileDesc.WriteString("\n")
@@ -125,6 +124,7 @@ func (s *multiLog) setupLogFile(logName string) {
 
 // changeLogFileName changes the name of the log file.
 func (s *multiLog) changeLogFileName(newLogName string) {
+	// close old log file
 	s.fileDesc.Close()
 	s.fileLogInstance = nil
 	s.setupLogFile(newLogName)
@@ -154,22 +154,19 @@ func (s *logService) run() {
 	for {
 		select {
 		case <-s.stop:
-			// write all messages which are still in the data channel and have not been written yet
-			s.flushMessages(len(s.data))
+			s.flushMessages()
 			return
 		case logMsg = <-s.data:
 			s.writeMessage(logMsg)
 		case cfgMsg = <-s.config:
-			switch cfgMsg.category {
+			switch cfgMsg.action {
 			case initlog:
 				s.setupLogFile(cfgMsg.data)
-				s.confirmed <- signal{}
+				c.execServiceActionResponse <- signal{}
 			case changelog:
-				// write all messages to the old log file, which were already sent to the data channel before the change log name was triggered
-				s.flushMessages(len(s.data))
-				// change the log file name
+				s.flushMessages()
 				s.changeLogFileName(cfgMsg.data)
-				s.confirmed <- signal{}
+				c.execServiceActionResponse <- signal{}
 			}
 		}
 	}
@@ -192,12 +189,10 @@ func (s *logService) writeMessage(logMsg logMessage) {
 	}
 }
 
-// flushMessages flushes(writes) a number of messages to a dedicated target.
-// The messages will be read from a buffered channel.
+// flushMessages flushes(writes) messages, which are still buffered in the data channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
-func (s *logService) flushMessages(numMessages int) {
-	for numMessages > 0 {
+func (s *logService) flushMessages() {
+	for len(s.data) > 0 {
 		s.writeMessage(<-s.data)
-		numMessages--
 	}
 }

@@ -12,8 +12,8 @@ type control struct {
 	checkServiceState         chan int    // the channel for receiving a state check request from the caller
 	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
 	setServiceState           chan int    // the channel for receiving a state change request from the caller
-	execServiceAction         chan int    // TBD
-	execServiceActionResponse chan signal // TBD
+	execServiceAction         chan int    // the channel for receiving a service action request from the caller
+	execServiceActionResponse chan signal // the channel for sending a signal response to the caller to continue the workflow
 }
 
 // init starts the control.
@@ -39,7 +39,7 @@ func init() {
 //   - setServiceState
 //   - checkServiceState
 func (c *control) run(controlRunning chan bool) {
-	var newState, totalState int
+	var singleState, totalState int
 
 	for {
 		select {
@@ -51,8 +51,7 @@ func (c *control) run(controlRunning chan bool) {
 				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
 				s.data = make(chan logMessage, buf)
 				s.config = make(chan configMessage)
-				s.stop = make(chan signal)
-				s.confirmed = make(chan signal)
+				s.stop = make(chan signal, 1)
 
 				// reset state attribute (after the log service has restarted)
 				if totalState == stopped {
@@ -82,19 +81,24 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					c.execServiceActionResponse <- signal{}
-
-					// cleanup log service resources
+					// close log file
 					s.fileDesc.Close()
+					c.execServiceActionResponse <- signal{}
 				}()
+			case initlog:
+				logName := convertToString(s.attribute[logfilename])
+				s.config <- configMessage{initlog, logName}
+			case changelog:
+				newLogName := convertToString(s.attribute[logfilename])
+				s.config <- configMessage{changelog, newLogName}
 			}
-		case newState = <-c.setServiceState:
-			if newState == stopped {
+		case singleState = <-c.setServiceState:
+			if singleState == stopped {
 				// unset all other states
-				totalState = newState
+				totalState = singleState
 			} else {
 				// add new state to the total state
-				totalState |= newState
+				totalState |= singleState
 			}
 		case state := <-c.checkServiceState:
 			if totalState&state == state {

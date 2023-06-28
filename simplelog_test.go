@@ -15,7 +15,6 @@ func Test_service_startup(t *testing.T) {
 		t.Error("Expected state true but got", a)
 	} else {
 		s.stop <- signal{}
-		// <-s.confirmed
 		for {
 			// wait until the service is up
 			if !c.checkState(running) {
@@ -32,7 +31,12 @@ func Test_service_shutdown(t *testing.T) {
 	if a := c.checkState(running); a == true {
 		t.Error("Expected state false but got", a)
 		s.stop <- signal{}
-		<-s.confirmed
+		for {
+			// wait until the service is stopped
+			if c.checkState(stopped) {
+				break
+			}
+		}
 	}
 }
 

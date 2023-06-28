@@ -43,8 +43,8 @@ func Shutdown() {
 func InitLogFile(logName string) {
 	if c.checkState(running) {
 		// initialize the log file
-		s.config <- configMessage{initlog, logName}
-		<-s.confirmed
+		s.setAttribut(logfilename, logName)
+		c.service(initlog)
 	} else {
 		panic(m004)
 	}
@@ -56,8 +56,8 @@ func InitLogFile(logName string) {
 func ChangeLogName(newLogName string) {
 	if c.checkState(running) {
 		// change the log name
-		s.config <- configMessage{changelog, newLogName}
-		<-s.confirmed
+		s.setAttribut(logfilename, newLogName)
+		c.service(changelog)
 	} else {
 		panic(m004)
 	}
@@ -76,9 +76,6 @@ func WriteToStdout(values ...any) {
 // WriteToFile writes a log message to a log file.
 func WriteToFile(values ...any) {
 	if c.checkState(running) {
-		if s.fileDesc == nil {
-			panic(m001)
-		}
 		msg := parseValues(values)
 		s.data <- logMessage{file, msg}
 	} else {
@@ -89,9 +86,6 @@ func WriteToFile(values ...any) {
 // WriteToMulti writes a log message to multiple targets.
 func WriteToMulti(values ...any) {
 	if c.checkState(running) {
-		if s.fileDesc == nil {
-			panic(m001)
-		}
 		msg := parseValues(values)
 		s.data <- logMessage{multi, msg}
 	} else {
