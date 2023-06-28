@@ -17,7 +17,7 @@ type control struct {
 }
 
 // init starts the control.
-// The control monitors the log service and can answer questions regarding the state of the service.
+// The control monitors the log service and triggers actions to be started by the log service.
 func init() {
 	c.checkServiceState = make(chan int)
 	c.checkServiceStateResponse = make(chan bool)
