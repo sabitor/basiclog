@@ -21,7 +21,7 @@ const (
 func Startup(bufferSize int) {
 	if !c.checkState(running) {
 		// start the log service
-		s.setAttribut(logbuffer, 10)
+		s.setAttribut(logbuffer, bufferSize)
 		c.service(start)
 	} else {
 		panic(m002)
