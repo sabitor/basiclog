@@ -51,7 +51,7 @@ func (c *control) run(controlRunning chan bool) {
 				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
 				s.data = make(chan logMessage, buf)
 				s.config = make(chan configMessage)
-				s.stop = make(chan signal, 1)
+				s.stop = make(chan signal, 1) // has to be buffered to prevent deadlocks
 
 				// reset state attribute (after the log service has restarted)
 				if totalState == stopped {
