@@ -61,7 +61,7 @@ func (c *control) run(controlRunning chan bool) {
 				// start log service
 				go s.run()
 				// reply to the caller when the service has started
-				// the go routine is necessary to prevent a deadlock, since control must still be able to handle setServiceState messages
+				// the go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
 				go func() {
 					for {
 						// wait until the service is running
@@ -75,7 +75,7 @@ func (c *control) run(controlRunning chan bool) {
 				// stop log service
 				s.stop <- signal{}
 				// reply to the caller when the service has stopped
-				// the go routine is necessary to prevent a deadlock, since control must still be able to handle setServiceState messages
+				// the go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
 				go func() {
 					for {
 						// wait until the service is stopped
