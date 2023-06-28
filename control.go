@@ -12,7 +12,6 @@ type control struct {
 	checkServiceState         chan int    // the channel for receiving a state check request from the caller
 	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
 	setServiceState           chan int    // the channel for receiving a state change request from the caller
-	setServiceStateResponse   chan signal // the channel for sending a boolean response to the caller
 	execServiceAction         chan int    // TBD
 	execServiceActionResponse chan signal // TBD
 }
@@ -23,7 +22,6 @@ func init() {
 	c.checkServiceState = make(chan int)
 	c.checkServiceStateResponse = make(chan bool)
 	c.setServiceState = make(chan int)
-	c.setServiceStateResponse = make(chan signal)
 	c.execServiceAction = make(chan int)
 	c.execServiceActionResponse = make(chan signal)
 
@@ -98,7 +96,6 @@ func (c *control) run(controlRunning chan bool) {
 				// add new state to the total state
 				totalState |= newState
 			}
-			c.setServiceStateResponse <- signal{}
 		case state := <-c.checkServiceState:
 			if totalState&state == state {
 				c.checkServiceStateResponse <- true
@@ -122,7 +119,6 @@ func (c *control) checkState(state int) bool {
 }
 
 // setState sets the state of the log service.
-func (c *control) setState(state int) signal {
+func (c *control) setState(state int) {
 	c.setServiceState <- state
-	return <-c.setServiceStateResponse
 }
