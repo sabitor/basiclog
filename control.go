@@ -28,7 +28,7 @@ func init() {
 	controlRunning := make(chan bool)
 	go c.run(controlRunning)
 	if !<-controlRunning {
-		panic("control is not running")
+		panic(m000)
 	}
 }
 
@@ -49,9 +49,9 @@ func (c *control) run(controlRunning chan bool) {
 			case start:
 				// allocate log service channels
 				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
-				s.data = make(chan logMessage, buf)
-				s.config = make(chan configMessage)
-				s.stop = make(chan signal, 1) // has to be buffered to prevent deadlocks
+				s.logData = make(chan logMessage, buf)
+				s.serviceConfig = make(chan configMessage)
+				s.serviceStop = make(chan signal, 1) // has to be buffered to prevent deadlocks
 
 				// reset state attribute (after the log service has restarted)
 				if totalState == stopped {
@@ -73,7 +73,7 @@ func (c *control) run(controlRunning chan bool) {
 				}()
 			case stop:
 				// stop log service
-				s.stop <- signal{}
+				s.serviceStop <- signal{}
 				// reply to the caller when the service has stopped
 				// the go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
 				go func() {
@@ -83,16 +83,15 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					// close log file
-					s.fileDesc.Close()
+					s.closeLogFile()
 					c.execServiceActionResponse <- signal{}
 				}()
 			case initlog:
 				logName := convertToString(s.attribute[logfilename])
-				s.config <- configMessage{initlog, logName}
-			case changelog:
+				s.serviceConfig <- configMessage{initlog, logName}
+			case newlog:
 				newLogName := convertToString(s.attribute[logfilename])
-				s.config <- configMessage{changelog, newLogName}
+				s.serviceConfig <- configMessage{newlog, newLogName}
 			}
 		case singleState = <-c.setServiceState:
 			if singleState == stopped {

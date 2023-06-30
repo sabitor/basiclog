@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -20,7 +21,7 @@ const (
 	start = iota
 	stop
 	initlog
-	changelog
+	newlog
 )
 
 // log service states bitmask
@@ -54,14 +55,14 @@ type configMessage struct {
 type logService struct {
 	logFactory
 
-	config chan configMessage // the channel for sending config messages to the log service
-	stop   chan signal        // the channel for sending a stop signal to the log service
+	serviceConfig chan configMessage // the channel for sending config messages to the log service
+	serviceStop   chan signal        // the channel for sending a stop signal to the log service
 }
 
 // logFactory is the base data collection to support logging to multiple targets.
 type logFactory struct {
 	attribute map[int]any     // the map which contains the log factory attributes
-	data      chan logMessage // the channel for sending log messages to the log service; this channel will be a buffered channel
+	logData   chan logMessage // the channel for sending log messages to the log service; this channel buffered
 	multiLog                  // the multiLog supports logging to stdout and file
 }
 
@@ -116,16 +117,29 @@ func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
 // setupLogFile creates and opens the log file.
 func (s *multiLog) setupLogFile(logName string) {
 	var err error
-	s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
+	if s.fileDesc == nil {
+		s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("init")
+	} else {
+		fmt.Println("no init")
+	}
+}
+
+func (s *multiLog) closeLogFile() {
+	if err := s.fileDesc.Close(); err != nil {
 		panic(err)
 	}
+	s.fileDesc = nil
 }
 
 // changeLogFileName changes the name of the log file.
 func (s *multiLog) changeLogFileName(newLogName string) {
 	// close old log file
-	s.fileDesc.Close()
+	s.closeLogFile()
+	// close file log instance (link to old log descriptor still exists)
 	s.fileLogInstance = nil
 	s.setupLogFile(newLogName)
 }
@@ -153,17 +167,17 @@ func (s *logService) run() {
 
 	for {
 		select {
-		case <-s.stop:
+		case <-s.serviceStop:
 			s.flushMessages()
 			return
-		case logMsg = <-s.data:
+		case logMsg = <-s.logData:
 			s.writeMessage(logMsg)
-		case cfgMsg = <-s.config:
+		case cfgMsg = <-s.serviceConfig:
 			switch cfgMsg.action {
 			case initlog:
 				s.setupLogFile(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
-			case changelog:
+			case newlog:
 				s.flushMessages()
 				s.changeLogFileName(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
@@ -192,7 +206,7 @@ func (s *logService) writeMessage(logMsg logMessage) {
 // flushMessages flushes(writes) messages, which are still buffered in the data channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
 func (s *logService) flushMessages() {
-	for len(s.data) > 0 {
-		s.writeMessage(<-s.data)
+	for len(s.logData) > 0 {
+		s.writeMessage(<-s.logData)
 	}
 }

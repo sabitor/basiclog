@@ -7,12 +7,19 @@
 // to either standard out, a log file, or multiple targets.
 package simplelog
 
+import (
+	"os"
+)
+
 // message catalog
 const (
+	m000 = "control is not running"
 	m001 = "log file not initialized"
 	m002 = "log service was already started"
 	m003 = "log service is not running"
 	m004 = "log service has not been started"
+	m005 = "log file already initialized"
+	m006 = "log file already exists"
 )
 
 // Startup starts the log service.
@@ -40,8 +47,20 @@ func Shutdown() {
 }
 
 // InitLogFile initializes the log file.
-func InitLogFile(logName string) {
+func InitLogFile(logName string, removeLog bool) {
+	if s.fileDesc != nil {
+		panic(m005)
+	}
 	if c.checkState(running) {
+		if removeLog {
+			// remove log from previous run
+			var err error
+			if _, err = os.Stat(logName); err == nil {
+				if err = os.Remove(logName); err != nil {
+					panic(err)
+				}
+			}
+		}
 		// initialize the log file
 		s.setAttribut(logfilename, logName)
 		c.service(initlog)
@@ -50,14 +69,18 @@ func InitLogFile(logName string) {
 	}
 }
 
-// ChangeLogName changes the log file name.
-// As part of this task, the current log file is closed (not deleted) and a log file with the new name is created.
+// NewLogName closes the current log file and a new log file with the specified name is created.
+// The current log file is not deleted.
+// The new log file must not exist.
 // The log service doesn't need to be stopped for this task.
-func ChangeLogName(newLogName string) {
+func NewLogName(newLogName string) {
 	if c.checkState(running) {
-		// change the log name
+		if _, err := os.Stat(newLogName); err == nil {
+			panic(m006)
+		}
+		// setup a new log file
 		s.setAttribut(logfilename, newLogName)
-		c.service(changelog)
+		c.service(newlog)
 	} else {
 		panic(m004)
 	}
@@ -67,7 +90,7 @@ func ChangeLogName(newLogName string) {
 func WriteToStdout(values ...any) {
 	if c.checkState(running) {
 		msg := parseValues(values)
-		s.data <- logMessage{stdout, msg}
+		s.logData <- logMessage{stdout, msg}
 	} else {
 		panic(m004)
 	}
@@ -77,7 +100,7 @@ func WriteToStdout(values ...any) {
 func WriteToFile(values ...any) {
 	if c.checkState(running) {
 		msg := parseValues(values)
-		s.data <- logMessage{file, msg}
+		s.logData <- logMessage{file, msg}
 	} else {
 		panic(m004)
 	}
@@ -87,7 +110,7 @@ func WriteToFile(values ...any) {
 func WriteToMulti(values ...any) {
 	if c.checkState(running) {
 		msg := parseValues(values)
-		s.data <- logMessage{multi, msg}
+		s.logData <- logMessage{multi, msg}
 	} else {
 		panic(m004)
 	}
