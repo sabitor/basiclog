@@ -162,7 +162,7 @@ func (s *logService) run() {
 	for {
 		select {
 		case <-s.serviceStop:
-			s.flushMessages()
+			s.flush()
 			return
 		case logMsg = <-s.logData:
 			s.writeMessage(logMsg)
@@ -172,7 +172,7 @@ func (s *logService) run() {
 				s.setupLogFile(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
 			case newlog:
-				s.flushMessages()
+				s.flush()
 				s.changeLogFileName(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
 			}
@@ -197,9 +197,9 @@ func (s *logService) writeMessage(logMsg logMessage) {
 	}
 }
 
-// flushMessages flushes(writes) messages, which are still buffered in the data channel.
+// flush flushes(writes) messages, which are still buffered in the data channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
-func (s *logService) flushMessages() {
+func (s *logService) flush() {
 	for len(s.logData) > 0 {
 		s.writeMessage(<-s.logData)
 	}
