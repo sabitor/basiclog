@@ -1,7 +1,6 @@
 package simplelog
 
 import (
-	"fmt"
 	"log"
 	"os"
 )
@@ -117,14 +116,9 @@ func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
 // setupLogFile creates and opens the log file.
 func (s *multiLog) setupLogFile(logName string) {
 	var err error
-	if s.fileDesc == nil {
-		s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("init")
-	} else {
-		fmt.Println("no init")
+	s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
 	}
 }
 
