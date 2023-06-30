@@ -34,19 +34,20 @@ import (
 )
 
 func main() {
-    logBuffer := 1 // number of log messages which can be buffered before the log service blocks
+    logBuffer := 2 // number of log messages which can be buffered before the log service blocks
     simplelog.Startup(logBuffer)
     defer simplelog.Shutdown()
 
     simplelog.WriteToStdout(">>> Start application")
     log1 := "log1.txt"
-    simplelog.InitLogFile(log1)
+    simplelog.InitLogFile(log1, false)
+    simplelog.WriteToStdout("Log file is", log1)
     simplelog.WriteToFile("[MAIN]", "Write", 1, "to FILE.")
     simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
     
     log2 := "log2.txt"
-    simplelog.ChangeLogName(log2)
-    simplelog.WriteToStdout("Changed log file to", log2)
+    simplelog.NewLogName(log2)
+    simplelog.WriteToStdout("New log file is", log2)
 
     var wg sync.WaitGroup
     for i := 1; i <= 4; i++ {
@@ -69,8 +70,9 @@ The following log output was generated:
 **Standard out**
 ```
 >>> Start application
+Log file is log1.txt
 [MAIN] Write 1 to MULTI.
-Changed log file to log2.txt
+New log file is log2.txt
 [MAIN] Write 2 to MULTI.
 <<< Stop application
 ```
