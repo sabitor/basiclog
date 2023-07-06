@@ -1,8 +1,10 @@
 package simplelog
 
 import (
+	"bufio"
 	"log"
 	"os"
+	"time"
 )
 
 // service instance
@@ -72,6 +74,7 @@ type stdoutLog struct {
 
 // fileLogWriter is a data collection to support logging to files.
 type fileLog struct {
+	fileWriter      *bufio.Writer
 	fileDesc        *os.File
 	fileLogInstance *log.Logger
 }
@@ -89,23 +92,35 @@ type logWriter interface {
 }
 
 // instance denotes the logWriter interface implementation by the stdoutLog type.
-func (slw *stdoutLog) instance() *log.Logger {
-	if slw.stdoutLogInstance == nil {
-		slw.stdoutLogInstance = log.New(os.Stdout, "", 0)
+func (s *stdoutLog) instance() *log.Logger {
+	if s.stdoutLogInstance == nil {
+		s.stdoutLogInstance = log.New(os.Stdout, "", 0)
 	}
-	return slw.stdoutLogInstance
+	return s.stdoutLogInstance
 }
 
 // instance denotes the logWriter interface implementation by the fileLog type.
-func (flw *fileLog) instance() *log.Logger {
-	if s.fileDesc == nil {
-		panic(m001)
+func (s *fileLog) instance() *log.Logger {
+	if s.fileLogInstance == nil {
+		if s.fileDesc == nil {
+			panic(m001)
+		}
+		// s.fileWriter = bufio.NewWriter(s.fileDesc)
+		s.fileWriter = bufio.NewWriterSize(s.fileDesc, 16384)
+		// fmt.Println("Buffer size:", w.Size())
+		// s.fileWriter = s.fileDesc
+		s.fileLogInstance = log.New(s.fileWriter, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+		s.fileWriter.WriteString("\n")
+		go func() {
+			for {
+				time.Sleep(2 * time.Second)
+				if s.fileWriter.Buffered() > 0 {
+					s.fileWriter.Flush()
+				}
+			}
+		}()
 	}
-	if flw.fileLogInstance == nil {
-		flw.fileLogInstance = log.New(flw.fileDesc, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-		flw.fileDesc.WriteString("\n")
-	}
-	return flw.fileLogInstance
+	return s.fileLogInstance
 }
 
 // getLogWriter returns a log.Logger instance.
@@ -124,6 +139,9 @@ func (s *multiLog) setupLogFile(logName string) {
 
 func (s *multiLog) closeLogFile() {
 	if s.fileDesc != nil {
+		if s.fileWriter.Buffered() > 0 {
+			s.fileWriter.Flush()
+		}
 		if err := s.fileDesc.Close(); err != nil {
 			panic(err)
 		}
@@ -186,16 +204,12 @@ func (s *logService) run() {
 func (s *logService) writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
-		stdoutLogger := s.getLogWriter(&s.stdoutLog)
-		stdoutLogger.Print(logMsg.data)
+		s.stdoutLog.instance().Print(logMsg.data)
 	case file:
-		fileLogger := s.getLogWriter(&s.fileLog)
-		fileLogger.Print(logMsg.data)
+		s.fileLog.instance().Print(logMsg.data)
 	case multi:
-		stdoutLogger := s.getLogWriter(&s.stdoutLog)
-		fileLogger := s.getLogWriter(&s.fileLog)
-		stdoutLogger.Print(logMsg.data)
-		fileLogger.Print(logMsg.data)
+		s.stdoutLog.instance().Print(logMsg.data)
+		s.fileLog.instance().Print(logMsg.data)
 	}
 }
 
