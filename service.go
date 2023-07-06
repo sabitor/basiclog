@@ -123,10 +123,12 @@ func (s *multiLog) setupLogFile(logName string) {
 }
 
 func (s *multiLog) closeLogFile() {
-	if err := s.fileDesc.Close(); err != nil {
-		panic(err)
+	if s.fileDesc != nil {
+		if err := s.fileDesc.Close(); err != nil {
+			panic(err)
+		}
+		s.fileDesc = nil
 	}
-	s.fileDesc = nil
 }
 
 // changeLogFileName changes the name of the log file.
