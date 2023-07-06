@@ -14,7 +14,7 @@ func Test_service_startup(t *testing.T) {
 	if a := c.checkState(running); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
-		s.stop <- signal{}
+		s.serviceStop <- signal{}
 		for {
 			// wait until the service is up
 			if !c.checkState(running) {
@@ -30,7 +30,7 @@ func Test_service_shutdown(t *testing.T) {
 
 	if a := c.checkState(running); a == true {
 		t.Error("Expected state false but got", a)
-		s.stop <- signal{}
+		s.serviceStop <- signal{}
 		for {
 			// wait until the service is stopped
 			if c.checkState(stopped) {
@@ -50,7 +50,7 @@ func Test_service_initLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
+	InitLogFile(logFile, false)
 	Shutdown()
 
 	data, err := os.Stat(logFile)
@@ -79,8 +79,8 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile1)
-	ChangeLogName(logFile2)
+	InitLogFile(logFile1, false)
+	NewLogName(logFile2)
 	Shutdown()
 
 	data, err := os.Stat(logFile1)
@@ -138,7 +138,7 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
+	InitLogFile(logFile, false)
 	WriteToFile("The answer to all questions is", 42)
 	Shutdown()
 
@@ -166,7 +166,7 @@ func Test_service_writeToMulti(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
+	InitLogFile(logFile, false)
 	WriteToMulti("The answer to all questions is", 42)
 	Shutdown()
 
