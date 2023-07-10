@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	"os"
 	"strconv"
 )
 
@@ -94,7 +95,17 @@ func (c *control) run(controlRunning chan bool) {
 					c.execServiceActionResponse <- signal{}
 				}()
 			case initlog:
+				append, _ := strconv.ParseBool(convertToString(s.attribute[appendlog]))
 				logName := convertToString(s.attribute[logfilename])
+				if !append {
+					// don't append - remove old log
+					var err error
+					if _, err = os.Stat(logName); err == nil {
+						if err = os.Remove(logName); err != nil {
+							panic(err)
+						}
+					}
+				}
 				s.serviceConfig <- configMessage{initlog, logName}
 			case switchlog:
 				newLogName := convertToString(s.attribute[logfilename])

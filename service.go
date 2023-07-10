@@ -36,7 +36,8 @@ const (
 const (
 	logbuffer   = iota // defines the buffer size of the logMessage channel
 	logfilename        // defines the log file name to be used
-	logarchive         // defines whether the log should be archived
+	logarchive         // a flag which defines whether the log should be archived
+	appendlog          // a flag which defines whether the messages are appended to the existing log
 )
 
 // signal to confirm actions across channels

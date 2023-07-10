@@ -27,7 +27,6 @@ const (
 // The log service runs in its own goroutine.
 func Startup(bufferSize int) {
 	if !c.checkState(running) {
-		// start the log service
 		s.setAttribut(logbuffer, bufferSize)
 		c.service(start)
 	} else {
@@ -36,12 +35,11 @@ func Startup(bufferSize int) {
 }
 
 // Shutdown stops the log service and does some cleanup.
-// The archive flag indicates whether the log file is archived (true) or not (false)
+// The archFlag flag indicates whether the log file is archived (true) or not (false)
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
-func Shutdown(archive bool) {
+func Shutdown(archFlag bool) {
 	if c.checkState(running) {
-		// stop the log service
-		s.setAttribut(logarchive, archive)
+		s.setAttribut(logarchive, archFlag)
 		c.service(stop)
 	} else {
 		panic(m003)
@@ -50,22 +48,14 @@ func Shutdown(archive bool) {
 
 // InitLogFile initializes the log file.
 // The logName specifies the name of the log file.
-// The removeLog flag indicates whether the log file is removed (true) or it is kept (false).
-func InitLogFile(logName string, removeLog bool) {
+// The append flag indicates whether messages are appended to the existing log file (true)
+// or if the old log is removed and a new log is created (false).
+func InitLogFile(logName string, append bool) {
 	if s.fileDesc != nil {
 		panic(m005)
 	}
 	if c.checkState(running) {
-		if removeLog {
-			// remove log from previous run
-			var err error
-			if _, err = os.Stat(logName); err == nil {
-				if err = os.Remove(logName); err != nil {
-					panic(err)
-				}
-			}
-		}
-		// initialize the log file
+		s.setAttribut(appendlog, append)
 		s.setAttribut(logfilename, logName)
 		c.service(initlog)
 	} else {
@@ -83,7 +73,6 @@ func SwitchLog(newLogName string) {
 		if _, err := os.Stat(newLogName); err == nil {
 			panic(m006)
 		}
-		// setup a new log file
 		s.setAttribut(logfilename, newLogName)
 		c.service(switchlog)
 	} else {
@@ -114,7 +103,8 @@ func WriteToFile(logValues ...any) {
 }
 
 // WriteToMulti writes a log message to multiple targets.
-// The logValues parameter consists of a number of different parameters that are logged to multiple targets, here stdout and to a log file.
+// The logValues parameter consists of a number of different parameters that are logged to multiple targets,
+// here stdout and to a log file.
 func WriteToMulti(logValues ...any) {
 	if c.checkState(running) {
 		msg := parseValues(logValues)
