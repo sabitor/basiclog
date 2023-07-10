@@ -7,10 +7,6 @@
 // to either standard out, a log file, or multiple targets.
 package simplelog
 
-import (
-	"os"
-)
-
 // message catalog
 const (
 	m000 = "control is not running"
@@ -69,9 +65,6 @@ func InitLogFile(logName string, append bool) {
 // The newLogName specifies the name of the new log to switch to.
 func SwitchLog(newLogName string) {
 	if c.checkState(running) {
-		if _, err := os.Stat(newLogName); err == nil {
-			panic(m006)
-		}
 		s.setAttribut(logfilename, newLogName)
 		c.service(switchlog)
 	} else {

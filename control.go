@@ -109,6 +109,9 @@ func (c *control) run(controlRunning chan bool) {
 				s.serviceConfig <- configMessage{initlog, logName}
 			case switchlog:
 				newLogName := convertToString(s.attribute[logfilename])
+				if _, err := os.Stat(newLogName); err == nil {
+					panic(m006)
+				}
 				s.serviceConfig <- configMessage{switchlog, newLogName}
 			}
 		case singleState = <-c.setServiceState:
