@@ -64,9 +64,8 @@ func InitLogFile(logName string, append bool) {
 }
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
-// The current log file is not deleted.
-// The new log file must not exist.
-// The log service doesn't need to be stopped for this task.
+// Thereby, the current log file is not deleted, the new log file must not exist and the log service
+// doesn't need to be stopped for this task.
 // The newLogName specifies the name of the new log to switch to.
 func SwitchLog(newLogName string) {
 	if c.checkState(running) {
