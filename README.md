@@ -20,7 +20,7 @@ Using the log framework is pretty easy. After the log service has been started o
 
 **Hint:** 
 1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLogFile* function before log messages can be written to the log file.
-2) The log file used by the log service can be changed by calling the *NewLogFile* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created. The log service does not have to be stopped for this purpose.
+2) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created. The log service does not have to be stopped for this purpose.
 
 Let's take a look at the following example application that shows how to use the simplelog framework:
 ```go
@@ -36,7 +36,7 @@ import (
 func main() {
     logBuffer := 2 // number of log messages which can be buffered before the log service blocks
     simplelog.Startup(logBuffer)
-    defer simplelog.Shutdown()
+    defer simplelog.Shutdown(false)
 
     simplelog.WriteToStdout(">>> Start application")
     log1 := "log1.txt"
@@ -46,7 +46,7 @@ func main() {
     simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
     
     log2 := "log2.txt"
-    simplelog.NewLogName(log2)
+    simplelog.SwitchLog(log2)
     simplelog.WriteToStdout("New log file is", log2)
 
     var wg sync.WaitGroup
