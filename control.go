@@ -1,6 +1,7 @@
 package simplelog
 
 import (
+	"os"
 	"strconv"
 )
 
@@ -14,6 +15,7 @@ type control struct {
 	setServiceState           chan int    // the channel for receiving a state change request from the caller
 	execServiceAction         chan int    // the channel for receiving a service action request from the caller
 	execServiceActionResponse chan signal // the channel for sending a signal response to the caller to continue the workflow
+	stopService               chan signal // the channel that signals any listening goroutine to stop
 }
 
 // init starts the control.
@@ -41,17 +43,18 @@ func init() {
 func (c *control) run(controlRunning chan bool) {
 	var singleState, totalState int
 
+	// service loop
 	for {
 		select {
 		case controlRunning <- true:
 		case action := <-c.execServiceAction:
 			switch action {
 			case start:
-				// allocate log service channels
+				// init log service resources
 				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
 				s.logData = make(chan logMessage, buf)
 				s.serviceConfig = make(chan configMessage)
-				s.serviceStop = make(chan signal, 1) // has to be buffered to prevent deadlocks
+				c.stopService = make(chan signal)
 
 				// reset state attribute (after the log service has restarted)
 				if totalState == stopped {
@@ -61,7 +64,7 @@ func (c *control) run(controlRunning chan bool) {
 				// start log service
 				go s.run()
 				// reply to the caller when the service has started
-				// the go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
+				// Hint: The go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
 				go func() {
 					for {
 						// wait until the service is running
@@ -72,10 +75,11 @@ func (c *control) run(controlRunning chan bool) {
 					c.execServiceActionResponse <- signal{}
 				}()
 			case stop:
+				archive, _ := strconv.ParseBool(convertToString(s.attribute[logarchive]))
 				// stop log service
-				s.serviceStop <- signal{}
+				close(c.stopService) // closing the stopService channel sends a signal to all go routines which are listening to that channel
 				// reply to the caller when the service has stopped
-				// the go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
+				// Hint: The go routine is necessary to prevent a deadlock; control must still be able to handle setServiceState messages
 				go func() {
 					for {
 						// wait until the service is stopped
@@ -83,15 +87,32 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
+					logFileName := s.fileDesc.Name()
 					s.closeLogFile()
+					if archive {
+						s.archiveLogFile(logFileName)
+					}
 					c.execServiceActionResponse <- signal{}
 				}()
 			case initlog:
+				append, _ := strconv.ParseBool(convertToString(s.attribute[appendlog]))
 				logName := convertToString(s.attribute[logfilename])
+				if !append {
+					// don't append - remove old log
+					var err error
+					if _, err = os.Stat(logName); err == nil {
+						if err = os.Remove(logName); err != nil {
+							panic(err)
+						}
+					}
+				}
 				s.serviceConfig <- configMessage{initlog, logName}
-			case newlog:
+			case switchlog:
 				newLogName := convertToString(s.attribute[logfilename])
-				s.serviceConfig <- configMessage{newlog, newLogName}
+				if _, err := os.Stat(newLogName); err == nil {
+					panic(m006)
+				}
+				s.serviceConfig <- configMessage{switchlog, newLogName}
 			}
 		case singleState = <-c.setServiceState:
 			if singleState == stopped {

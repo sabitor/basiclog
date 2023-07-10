@@ -7,10 +7,6 @@
 // to either standard out, a log file, or multiple targets.
 package simplelog
 
-import (
-	"os"
-)
-
 // message catalog
 const (
 	m000 = "control is not running"
@@ -23,11 +19,10 @@ const (
 )
 
 // Startup starts the log service.
-// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 // The log service runs in its own goroutine.
+// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 func Startup(bufferSize int) {
 	if !c.checkState(running) {
-		// start the log service
 		s.setAttribut(logbuffer, bufferSize)
 		c.service(start)
 	} else {
@@ -37,9 +32,10 @@ func Startup(bufferSize int) {
 
 // Shutdown stops the log service and does some cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
-func Shutdown() {
+// The archive flag indicates whether the log file is archived (true) or not (false)
+func Shutdown(archive bool) {
 	if c.checkState(running) {
-		// stop the log service
+		s.setAttribut(logarchive, archive)
 		c.service(stop)
 	} else {
 		panic(m003)
@@ -47,21 +43,15 @@ func Shutdown() {
 }
 
 // InitLogFile initializes the log file.
-func InitLogFile(logName string, removeLog bool) {
+// The logName specifies the name of the log file.
+// The append flag indicates whether messages are appended to the existing log file (true)
+// or if the old log is removed and a new log is created (false).
+func InitLogFile(logName string, append bool) {
 	if s.fileDesc != nil {
 		panic(m005)
 	}
 	if c.checkState(running) {
-		if removeLog {
-			// remove log from previous run
-			var err error
-			if _, err = os.Stat(logName); err == nil {
-				if err = os.Remove(logName); err != nil {
-					panic(err)
-				}
-			}
-		}
-		// initialize the log file
+		s.setAttribut(appendlog, append)
 		s.setAttribut(logfilename, logName)
 		c.service(initlog)
 	} else {
@@ -69,27 +59,24 @@ func InitLogFile(logName string, removeLog bool) {
 	}
 }
 
-// NewLogName closes the current log file and a new log file with the specified name is created.
-// The current log file is not deleted.
-// The new log file must not exist.
-// The log service doesn't need to be stopped for this task.
-func NewLogName(newLogName string) {
+// SwitchLog closes the current log file and a new log file with the specified name is created and used.
+// Thereby, the current log file is not deleted, the new log file must not exist and the log service
+// doesn't need to be stopped for this task.
+// The newLogName specifies the name of the new log to switch to.
+func SwitchLog(newLogName string) {
 	if c.checkState(running) {
-		if _, err := os.Stat(newLogName); err == nil {
-			panic(m006)
-		}
-		// setup a new log file
 		s.setAttribut(logfilename, newLogName)
-		c.service(newlog)
+		c.service(switchlog)
 	} else {
 		panic(m004)
 	}
 }
 
 // WriteToStdout writes a log message to stdout.
-func WriteToStdout(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to stdout.
+func WriteToStdout(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{stdout, msg}
 	} else {
 		panic(m004)
@@ -97,9 +84,10 @@ func WriteToStdout(values ...any) {
 }
 
 // WriteToFile writes a log message to a log file.
-func WriteToFile(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to a log file.
+func WriteToFile(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{file, msg}
 	} else {
 		panic(m004)
@@ -107,9 +95,11 @@ func WriteToFile(values ...any) {
 }
 
 // WriteToMulti writes a log message to multiple targets.
-func WriteToMulti(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to multiple targets,
+// here it is stdout and a log file.
+func WriteToMulti(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{multi, msg}
 	} else {
 		panic(m004)

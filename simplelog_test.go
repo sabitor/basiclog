@@ -14,7 +14,7 @@ func Test_service_startup(t *testing.T) {
 	if a := c.checkState(running); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
-		s.stop <- signal{}
+		close(c.stopService)
 		for {
 			// wait until the service is up
 			if !c.checkState(running) {
@@ -26,11 +26,11 @@ func Test_service_startup(t *testing.T) {
 
 func Test_service_shutdown(t *testing.T) {
 	Startup(1)
-	Shutdown()
+	Shutdown(false)
 
 	if a := c.checkState(running); a == true {
 		t.Error("Expected state false but got", a)
-		s.stop <- signal{}
+		close(c.stopService)
 		for {
 			// wait until the service is stopped
 			if c.checkState(stopped) {
@@ -50,8 +50,8 @@ func Test_service_initLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
-	Shutdown()
+	InitLogFile(logFile, false)
+	Shutdown(false)
 
 	data, err := os.Stat(logFile)
 	if err != nil {
@@ -79,9 +79,9 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile1)
-	ChangeLogName(logFile2)
-	Shutdown()
+	InitLogFile(logFile1, false)
+	SwitchLog(logFile2)
+	Shutdown(false)
 
 	data, err := os.Stat(logFile1)
 	if err != nil {
@@ -107,7 +107,7 @@ func Test_service_changeLogFile(t *testing.T) {
 }
 
 func Test_service_writeToStdout(t *testing.T) {
-	s = new(logService) // reset service instance
+	s = new(simpleLogService) // reset service instance
 	stdOut := os.Stdout
 
 	r, w, _ := os.Pipe()
@@ -115,7 +115,7 @@ func Test_service_writeToStdout(t *testing.T) {
 
 	Startup(1)
 	WriteToStdout("The answer to all questions is", 42)
-	Shutdown()
+	Shutdown(false)
 
 	_ = w.Close()
 
@@ -130,7 +130,7 @@ func Test_service_writeToStdout(t *testing.T) {
 }
 
 func Test_service_writeToFile(t *testing.T) {
-	s = new(logService) // reset service instance
+	s = new(simpleLogService) // reset service instance
 	logFile := "test1.log"
 
 	if _, err := os.Stat(logFile); err == nil {
@@ -138,9 +138,9 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
+	InitLogFile(logFile, false)
 	WriteToFile("The answer to all questions is", 42)
-	Shutdown()
+	Shutdown(false)
 
 	data, err := os.ReadFile(logFile)
 
@@ -154,7 +154,7 @@ func Test_service_writeToFile(t *testing.T) {
 }
 
 func Test_service_writeToMulti(t *testing.T) {
-	s = new(logService) // reset service instance
+	s = new(simpleLogService) // reset service instance
 	stdOut := os.Stdout
 	logFile := "test2.log"
 
@@ -166,9 +166,9 @@ func Test_service_writeToMulti(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile)
+	InitLogFile(logFile, false)
 	WriteToMulti("The answer to all questions is", 42)
-	Shutdown()
+	Shutdown(false)
 
 	_ = w.Close()
 
