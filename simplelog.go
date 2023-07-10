@@ -42,11 +42,11 @@ func Shutdown(archive bool) {
 	}
 }
 
-// InitLogFile initializes the log file.
+// InitLog initializes the log file.
 // The logName specifies the name of the log file.
 // The append flag indicates whether messages are appended to the existing log file (true)
 // or if the old log is removed and a new log is created (false).
-func InitLogFile(logName string, append bool) {
+func InitLog(logName string, append bool) {
 	if s.fileDesc != nil {
 		panic(m005)
 	}

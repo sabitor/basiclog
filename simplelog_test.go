@@ -50,7 +50,7 @@ func Test_service_initLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
+	InitLog(logFile, false)
 	Shutdown(false)
 
 	data, err := os.Stat(logFile)
@@ -79,7 +79,7 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile1, false)
+	InitLog(logFile1, false)
 	SwitchLog(logFile2)
 	Shutdown(false)
 
@@ -138,7 +138,7 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
+	InitLog(logFile, false)
 	WriteToFile("The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -166,7 +166,7 @@ func Test_service_writeToMulti(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
+	InitLog(logFile, false)
 	WriteToMulti("The answer to all questions is", 42)
 	Shutdown(false)
 
