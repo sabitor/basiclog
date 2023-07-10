@@ -36,10 +36,12 @@ func Startup(bufferSize int) {
 }
 
 // Shutdown stops the log service and does some cleanup.
+// The archive flag indicates whether the log file is archived (true) or not (false)
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
-func Shutdown() {
+func Shutdown(archive bool) {
 	if c.checkState(running) {
 		// stop the log service
+		s.setAttribut(logarchive, archive)
 		c.service(stop)
 	} else {
 		panic(m003)
@@ -47,6 +49,8 @@ func Shutdown() {
 }
 
 // InitLogFile initializes the log file.
+// The logName specifies the name of the log file.
+// The removeLog flag indicates whether the log file is removed (true) or it is kept (false).
 func InitLogFile(logName string, removeLog bool) {
 	if s.fileDesc != nil {
 		panic(m005)
@@ -69,27 +73,29 @@ func InitLogFile(logName string, removeLog bool) {
 	}
 }
 
-// NewLogName closes the current log file and a new log file with the specified name is created.
+// SwitchLog closes the current log file and a new log file with the specified name is created and used.
 // The current log file is not deleted.
 // The new log file must not exist.
 // The log service doesn't need to be stopped for this task.
-func NewLogName(newLogName string) {
+// The newLogName specifies the name of the new log to switch to.
+func SwitchLog(newLogName string) {
 	if c.checkState(running) {
 		if _, err := os.Stat(newLogName); err == nil {
 			panic(m006)
 		}
 		// setup a new log file
 		s.setAttribut(logfilename, newLogName)
-		c.service(newlog)
+		c.service(switchlog)
 	} else {
 		panic(m004)
 	}
 }
 
 // WriteToStdout writes a log message to stdout.
-func WriteToStdout(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to stdout.
+func WriteToStdout(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{stdout, msg}
 	} else {
 		panic(m004)
@@ -97,9 +103,10 @@ func WriteToStdout(values ...any) {
 }
 
 // WriteToFile writes a log message to a log file.
-func WriteToFile(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to a log file.
+func WriteToFile(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{file, msg}
 	} else {
 		panic(m004)
@@ -107,9 +114,10 @@ func WriteToFile(values ...any) {
 }
 
 // WriteToMulti writes a log message to multiple targets.
-func WriteToMulti(values ...any) {
+// The logValues parameter consists of a number of different parameters that are logged to multiple targets, here stdout and to a log file.
+func WriteToMulti(logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(values)
+		msg := parseValues(logValues)
 		s.logData <- logMessage{multi, msg}
 	} else {
 		panic(m004)

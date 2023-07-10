@@ -2,13 +2,14 @@ package simplelog
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 	"time"
 )
 
-// service instance
-var s = new(logService)
+// simplelog service instance
+var s = new(simpleLogService)
 
 // log targets
 const (
@@ -22,7 +23,7 @@ const (
 	start = iota
 	stop
 	initlog
-	newlog
+	switchlog
 )
 
 // log service states bitmask
@@ -33,8 +34,9 @@ const (
 
 // log service attributes
 const (
-	logbuffer = iota // defines the buffer size of the logMessage channel
-	logfilename
+	logbuffer   = iota // defines the buffer size of the logMessage channel
+	logfilename        // defines the log file name to be used
+	logarchive         // defines whether the log should be archived
 )
 
 // signal to confirm actions across channels
@@ -52,19 +54,13 @@ type configMessage struct {
 	data   string // the data, which will be used by the config task
 }
 
-// logService is structure used to handle workflows triggered by the simplelog API.
-type logService struct {
-	logFactory
-
+// simpleLogService is structure used to handle workflows triggered by the simplelog API.
+type simpleLogService struct {
+	attribute     map[int]any        // the map which contains the log factory attributes
+	logData       chan logMessage    // the channel for sending log messages to the log service; this channel buffered
 	serviceConfig chan configMessage // the channel for sending config messages to the log service
-	serviceStop   chan signal        // the channel for sending a stop signal to the log service
-}
-
-// logFactory is the base data collection to support logging to multiple targets.
-type logFactory struct {
-	attribute map[int]any     // the map which contains the log factory attributes
-	logData   chan logMessage // the channel for sending log messages to the log service; this channel buffered
-	multiLog                  // the multiLog supports logging to stdout and file
+	stdoutLog                        // the stdout logger
+	fileLog                          // the file logger
 }
 
 // stdoutLogWriter is a data collection to support logging to stdout.
@@ -77,12 +73,6 @@ type fileLog struct {
 	fileWriter      *bufio.Writer
 	fileDesc        *os.File
 	fileLogInstance *log.Logger
-}
-
-// logWriter is the log writer which supports logging to stdout and to files.
-type multiLog struct {
-	stdoutLog
-	fileLog
 }
 
 // logWriter interface includes definitions of the following method signatures:
@@ -100,66 +90,72 @@ func (s *stdoutLog) instance() *log.Logger {
 }
 
 // instance denotes the logWriter interface implementation by the fileLog type.
-func (s *fileLog) instance() *log.Logger {
-	if s.fileLogInstance == nil {
-		if s.fileDesc == nil {
+func (f *fileLog) instance() *log.Logger {
+	if f.fileLogInstance == nil {
+		if f.fileDesc == nil {
 			panic(m001)
 		}
-		// s.fileWriter = bufio.NewWriter(s.fileDesc)
-		s.fileWriter = bufio.NewWriterSize(s.fileDesc, 16384)
-		// fmt.Println("Buffer size:", w.Size())
-		// s.fileWriter = s.fileDesc
-		s.fileLogInstance = log.New(s.fileWriter, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-		s.fileWriter.WriteString("\n")
-		go func() {
-			for {
-				time.Sleep(2 * time.Second)
-				if s.fileWriter.Buffered() > 0 {
-					s.fileWriter.Flush()
-				}
-			}
-		}()
+		// f.fileWriter = bufio.NewWriter(s.fileDesc)
+		f.fileWriter = bufio.NewWriterSize(f.fileDesc, 16384)
+		f.fileLogInstance = log.New(f.fileWriter, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+		f.fileWriter.WriteString("\n")
 	}
-	return s.fileLogInstance
+	return f.fileLogInstance
 }
 
 // getLogWriter returns a log.Logger instance.
-func (s *multiLog) getLogWriter(lw logWriter) *log.Logger {
+func getLogWriter(lw logWriter) *log.Logger {
 	return lw.instance()
 }
 
 // setupLogFile creates and opens the log file.
-func (s *multiLog) setupLogFile(logName string) {
+func (f *fileLog) setupLogFile(logName string) {
 	var err error
-	s.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *multiLog) closeLogFile() {
-	if s.fileDesc != nil {
-		if s.fileWriter.Buffered() > 0 {
-			s.fileWriter.Flush()
+// closeLogFile closes the log file.
+// In particular that includes to flush all remaining data to the log file and to releases all used resources.
+func (f *fileLog) closeLogFile() {
+	if f.fileDesc != nil {
+		if f.fileWriter != nil {
+			if f.fileWriter.Buffered() >= 0 {
+				// only do the flush when the buffer has data to be written
+				f.fileWriter.Flush()
+			}
 		}
-		if err := s.fileDesc.Close(); err != nil {
+		if err := f.fileDesc.Close(); err != nil {
 			panic(err)
 		}
-		s.fileDesc = nil
+		f.fileDesc = nil
 	}
 }
 
-// changeLogFileName changes the name of the log file.
-func (s *multiLog) changeLogFileName(newLogName string) {
+// archiveLogFile archives the log file.
+// The archived log file is of the following format: <orig file name>_yymmddHHMMSS
+func (f *fileLog) archiveLogFile(logFileName string) {
+	t := time.Now()
+	formatted := fmt.Sprintf("%d%02d%02d%02d%02d%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	logArchiveName := logFileName + "_" + formatted
+	if err := os.Rename(logFileName, logArchiveName); err != nil {
+		panic(err)
+	}
+}
+
+// changeLogFile changes the name of the log file.
+func (f *fileLog) changeLogFile(newLogName string) {
 	// close old log file
-	s.closeLogFile()
+	f.closeLogFile()
 	// close file log instance (link to old log descriptor still exists)
-	s.fileLogInstance = nil
-	s.setupLogFile(newLogName)
+	f.fileLogInstance = nil
+	f.setupLogFile(newLogName)
 }
 
 // setAttribut sets a log service attribute.
-func (s *logService) setAttribut(key int, value any) {
+func (s *simpleLogService) setAttribut(key int, value any) {
 	if s.attribute == nil {
 		s.attribute = make(map[int]any)
 	}
@@ -172,51 +168,61 @@ func (s *logService) setAttribut(key int, value any) {
 //   - stop
 //   - data
 //   - config
-func (s *logService) run() {
+func (s *simpleLogService) run() {
 	var logMsg logMessage
 	var cfgMsg configMessage
 
 	c.setState(running)
 	defer c.setState(stopped)
 
+	// ticker to periodically trigger a flush of the file buffer
+	flushBuffer := time.NewTicker(1000 * time.Millisecond)
+
+	// service loop
 	for {
 		select {
-		case <-s.serviceStop:
-			s.flush()
+		case <-c.stopService:
+			flush()
 			return
 		case logMsg = <-s.logData:
-			s.writeMessage(logMsg)
+			writeMessage(logMsg)
+		case <-flushBuffer.C:
+			// only do the flush when the buffer has data to be written
+			if s.fileWriter.Buffered() > 0 {
+				s.fileWriter.Flush()
+			}
 		case cfgMsg = <-s.serviceConfig:
 			switch cfgMsg.action {
 			case initlog:
 				s.setupLogFile(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
-			case newlog:
-				s.flush()
-				s.changeLogFileName(cfgMsg.data)
+			case switchlog:
+				flush()
+				s.changeLogFile(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
 			}
 		}
 	}
+
 }
 
 // writeMessage writes data of log messages to a dedicated target.
-func (s *logService) writeMessage(logMsg logMessage) {
+func writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case stdout:
-		s.stdoutLog.instance().Print(logMsg.data)
+		getLogWriter(&s.stdoutLog).Print(logMsg.data)
 	case file:
-		s.fileLog.instance().Print(logMsg.data)
+		getLogWriter(&s.fileLog).Print(logMsg.data)
 	case multi:
-		s.stdoutLog.instance().Print(logMsg.data)
-		s.fileLog.instance().Print(logMsg.data)
+		getLogWriter(&s.stdoutLog).Print(logMsg.data)
+		getLogWriter(&s.fileLog).Print(logMsg.data)
 	}
 }
 
 // flush flushes(writes) messages, which are still buffered in the data channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
-func (s *logService) flush() {
+func flush() {
 	for len(s.logData) > 0 {
-		s.writeMessage(<-s.logData)
+		writeMessage(<-s.logData)
 	}
 }
