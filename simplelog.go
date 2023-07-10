@@ -104,7 +104,7 @@ func WriteToFile(logValues ...any) {
 
 // WriteToMulti writes a log message to multiple targets.
 // The logValues parameter consists of a number of different parameters that are logged to multiple targets,
-// here stdout and to a log file.
+// here it is stdout and a log file.
 func WriteToMulti(logValues ...any) {
 	if c.checkState(running) {
 		msg := parseValues(logValues)
