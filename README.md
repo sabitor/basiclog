@@ -19,7 +19,7 @@ A log entry in a log file consists of the following format:
 Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
 
 **Hint:** 
-1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLogFile* function before log messages can be written to the log file.
+1) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLog* function before log messages can be written to the log file.
 2) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created. The log service does not have to be stopped for this purpose.
 
 Let's take a look at the following example application that shows how to use the simplelog framework:
@@ -40,7 +40,7 @@ func main() {
 
     simplelog.WriteToStdout(">>> Start application")
     log1 := "log1.txt"
-    simplelog.InitLogFile(log1, false)
+    simplelog.InitLog(log1, false)
     simplelog.WriteToStdout("Log file is", log1)
     simplelog.WriteToFile("[MAIN]", "Write", 1, "to FILE.")
     simplelog.WriteToMulti("[MAIN]", "Write", 1, "to MULTI.")
