@@ -19,8 +19,8 @@ const (
 )
 
 // Startup starts the log service.
-// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 // The log service runs in its own goroutine.
+// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 func Startup(bufferSize int) {
 	if !c.checkState(running) {
 		s.setAttribut(logbuffer, bufferSize)
@@ -31,11 +31,11 @@ func Startup(bufferSize int) {
 }
 
 // Shutdown stops the log service and does some cleanup.
-// The archFlag flag indicates whether the log file is archived (true) or not (false)
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
-func Shutdown(archFlag bool) {
+// The archive flag indicates whether the log file is archived (true) or not (false)
+func Shutdown(archive bool) {
 	if c.checkState(running) {
-		s.setAttribut(logarchive, archFlag)
+		s.setAttribut(logarchive, archive)
 		c.service(stop)
 	} else {
 		panic(m003)
