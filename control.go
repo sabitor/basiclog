@@ -87,11 +87,7 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					logFileName := s.fileDesc.Name()
-					s.closeLogFile()
-					if archive {
-						s.archiveLogFile(logFileName)
-					}
+					s.releaseFileLogger(archive)
 					c.execServiceActionResponse <- signal{}
 				}()
 			case initlog:

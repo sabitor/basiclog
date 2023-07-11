@@ -114,7 +114,7 @@ func Test_service_writeToStdout(t *testing.T) {
 	os.Stdout = w
 
 	Startup(1)
-	WriteToStdout("The answer to all questions is", 42)
+	Log(STDOUT, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()
@@ -139,7 +139,7 @@ func Test_service_writeToFile(t *testing.T) {
 
 	Startup(1)
 	InitLog(logFile, false)
-	WriteToFile("The answer to all questions is", 42)
+	Log(FILE, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	data, err := os.ReadFile(logFile)
@@ -167,7 +167,7 @@ func Test_service_writeToMulti(t *testing.T) {
 
 	Startup(1)
 	InitLog(logFile, false)
-	WriteToMulti("The answer to all questions is", 42)
+	Log(MULTI, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()

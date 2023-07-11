@@ -13,9 +13,9 @@ var s = new(simpleLogService)
 
 // log targets
 const (
-	stdout = iota // write the log record to stdout
-	file          // write the log record to the log file
-	multi         // write the log record to stdout and to the log file
+	STDOUT = iota // write the log record to stdout
+	FILE          // write the log record to the log file
+	MULTI         // write the log record to stdout and to the log file
 )
 
 // log service actions
@@ -60,17 +60,17 @@ type simpleLogService struct {
 	attribute     map[int]any        // the map which contains the log factory attributes
 	logData       chan logMessage    // the channel for sending log messages to the log service; this channel buffered
 	serviceConfig chan configMessage // the channel for sending config messages to the log service
-	stdoutLog                        // the stdout logger
-	fileLog                          // the file logger
+	stdoutLogger                     // the stdout logger
+	fileLogger                       // the file logger
 }
 
-// stdoutLogWriter is a data collection to support logging to stdout.
-type stdoutLog struct {
+// stdoutLogger is a data collection to support logging to stdout.
+type stdoutLogger struct {
 	stdoutLogInstance *log.Logger
 }
 
-// fileLogWriter is a data collection to support logging to files.
-type fileLog struct {
+// fileLogger is a data collection to support logging to files.
+type fileLogger struct {
 	fileWriter      *bufio.Writer
 	fileDesc        *os.File
 	fileLogInstance *log.Logger
@@ -79,11 +79,11 @@ type fileLog struct {
 // logWriter interface includes definitions of the following method signatures:
 //   - instance
 type logWriter interface {
-	instance() *log.Logger // create and return a log.logger instance
+	instance() *log.Logger // create and return a *log.logger instance
 }
 
 // instance denotes the logWriter interface implementation by the stdoutLog type.
-func (s *stdoutLog) instance() *log.Logger {
+func (s *stdoutLogger) instance() *log.Logger {
 	if s.stdoutLogInstance == nil {
 		s.stdoutLogInstance = log.New(os.Stdout, "", 0)
 	}
@@ -91,7 +91,7 @@ func (s *stdoutLog) instance() *log.Logger {
 }
 
 // instance denotes the logWriter interface implementation by the fileLog type.
-func (f *fileLog) instance() *log.Logger {
+func (f *fileLogger) instance() *log.Logger {
 	if f.fileLogInstance == nil {
 		if f.fileDesc == nil {
 			panic(m001)
@@ -110,7 +110,7 @@ func getLogWriter(lw logWriter) *log.Logger {
 }
 
 // setupLogFile creates and opens the log file.
-func (f *fileLog) setupLogFile(logName string) {
+func (f *fileLogger) setupLogFile(logName string) {
 	var err error
 	f.fileDesc, err = os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -118,9 +118,8 @@ func (f *fileLog) setupLogFile(logName string) {
 	}
 }
 
-// closeLogFile closes the log file.
-// In particular that includes to flush all remaining data to the log file and to releases all used resources.
-func (f *fileLog) closeLogFile() {
+// releaseFileLogger releases all resources allocated by the fileLogger structure.
+func (f *fileLogger) releaseFileLogger(archive bool) {
 	if f.fileDesc != nil {
 		if f.fileWriter != nil {
 			if f.fileWriter.Buffered() >= 0 {
@@ -131,12 +130,17 @@ func (f *fileLog) closeLogFile() {
 		if err := f.fileDesc.Close(); err != nil {
 			panic(err)
 		}
+		if archive {
+			s.archiveLogFile(s.fileDesc.Name())
+		}
+		s.fileWriter = nil
 		f.fileDesc = nil
+		f.fileLogInstance = nil
 	}
 }
 
 // archiveLogFile archives the log file.
-func (f *fileLog) archiveLogFile(logFileName string) {
+func (f *fileLogger) archiveLogFile(logFileName string) {
 	t := time.Now()
 	formatted := fmt.Sprintf("%d%02d%02d%02d%02d%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 	logArchiveName := logFileName + "_" + formatted
@@ -146,11 +150,9 @@ func (f *fileLog) archiveLogFile(logFileName string) {
 }
 
 // changeLogFile changes the name of the log file.
-func (f *fileLog) changeLogFile(newLogName string) {
-	// close old log file
-	f.closeLogFile()
-	// close file log instance (link to old log descriptor still exists)
-	f.fileLogInstance = nil
+func (f *fileLogger) changeLogFile(newLogName string) {
+	// release old fileLogger resources
+	f.releaseFileLogger(false)
 	f.setupLogFile(newLogName)
 }
 
@@ -176,7 +178,7 @@ func (s *simpleLogService) run() {
 	defer c.setState(stopped)
 
 	// ticker to periodically trigger a flush of the file buffer
-	flushBuffer := time.NewTicker(1000 * time.Millisecond)
+	flushBufferInterval := time.NewTicker(1000 * time.Millisecond)
 
 	// service loop
 	for {
@@ -186,7 +188,9 @@ func (s *simpleLogService) run() {
 			return
 		case logMsg = <-s.logData:
 			writeMessage(logMsg)
-		case <-flushBuffer.C:
+			// s.fileLogger.fileWriter.WriteString(logMsg.data)
+			// s.fileLogger.fileWriter.WriteString("\n")
+		case <-flushBufferInterval.C:
 			// only do the flush when the buffer has data to be written
 			if s.fileWriter.Buffered() > 0 {
 				s.fileWriter.Flush()
@@ -195,6 +199,8 @@ func (s *simpleLogService) run() {
 			switch cfgMsg.action {
 			case initlog:
 				s.setupLogFile(cfgMsg.data)
+				// s.fileLogger.fileWriter = bufio.NewWriter(s.fileLogger.fileDesc)
+				// s.fileLogger.fileWriter.WriteString("\n")
 				c.execServiceActionResponse <- signal{}
 			case switchlog:
 				flush()
@@ -203,19 +209,18 @@ func (s *simpleLogService) run() {
 			}
 		}
 	}
-
 }
 
 // writeMessage writes data of log messages to a dedicated target.
 func writeMessage(logMsg logMessage) {
 	switch logMsg.target {
-	case stdout:
-		getLogWriter(&s.stdoutLog).Print(logMsg.data)
-	case file:
-		getLogWriter(&s.fileLog).Print(logMsg.data)
-	case multi:
-		getLogWriter(&s.stdoutLog).Print(logMsg.data)
-		getLogWriter(&s.fileLog).Print(logMsg.data)
+	case STDOUT:
+		getLogWriter(&s.stdoutLogger).Print(logMsg.data)
+	case FILE:
+		getLogWriter(&s.fileLogger).Print(logMsg.data)
+	case MULTI:
+		getLogWriter(&s.stdoutLogger).Print(logMsg.data)
+		getLogWriter(&s.fileLogger).Print(logMsg.data)
 	}
 }
 

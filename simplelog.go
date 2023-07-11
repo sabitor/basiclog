@@ -16,6 +16,7 @@ const (
 	m004 = "log service has not been started"
 	m005 = "log file already initialized"
 	m006 = "log file already exists"
+	m007 = "unknown log target specified"
 )
 
 // Startup starts the log service.
@@ -63,7 +64,7 @@ func InitLog(logName string, append bool) {
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
 // Thereby, the current log file is not deleted, the new log file must not exist and the log service
-// doesn't need to be stopped for this task.
+// doesn't need to be stopped for this task. The new log file must not exist.
 // The newLogName specifies the name of the new log to switch to.
 func SwitchLog(newLogName string) {
 	if c.checkState(running) {
@@ -74,35 +75,22 @@ func SwitchLog(newLogName string) {
 	}
 }
 
-// WriteToStdout writes a log message to stdout.
-// The logValues parameter consists of a number of different parameters that are logged to stdout.
-func WriteToStdout(logValues ...any) {
+// Log writes a log message to a specified target.
+// The target parameter specifies the log target, where the data will be written to.
+// The logValues parameter consists of one or multiple values that are logged.
+func Log(target int, logValues ...any) {
 	if c.checkState(running) {
 		msg := parseValues(logValues)
-		s.logData <- logMessage{stdout, msg}
-	} else {
-		panic(m004)
-	}
-}
-
-// WriteToFile writes a log message to a log file.
-// The logValues parameter consists of a number of different parameters that are logged to a log file.
-func WriteToFile(logValues ...any) {
-	if c.checkState(running) {
-		msg := parseValues(logValues)
-		s.logData <- logMessage{file, msg}
-	} else {
-		panic(m004)
-	}
-}
-
-// WriteToMulti writes a log message to multiple targets.
-// The logValues parameter consists of a number of different parameters that are logged to multiple targets,
-// here it is stdout and a log file.
-func WriteToMulti(logValues ...any) {
-	if c.checkState(running) {
-		msg := parseValues(logValues)
-		s.logData <- logMessage{multi, msg}
+		switch target {
+		case STDOUT:
+			s.logData <- logMessage{STDOUT, msg}
+		case FILE:
+			s.logData <- logMessage{FILE, msg}
+		case MULTI:
+			s.logData <- logMessage{MULTI, msg}
+		default:
+			panic(m007)
+		}
 	} else {
 		panic(m004)
 	}
