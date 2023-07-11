@@ -34,6 +34,7 @@ func Startup(bufferSize int) {
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 // The archive flag indicates whether the log file will be archived (true) or not (false).
 // Archiving a log file means that it will be renamed and no new messages will be appended on a new run.
+// The archived log file is of the following format: <orig file name>_yymmddHHMMSS.
 func Shutdown(archive bool) {
 	if c.checkState(running) {
 		s.setAttribut(logarchive, archive)
