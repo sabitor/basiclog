@@ -136,7 +136,6 @@ func (f *fileLog) closeLogFile() {
 }
 
 // archiveLogFile archives the log file.
-// The archived log file is of the following format: <orig file name>_yymmddHHMMSS
 func (f *fileLog) archiveLogFile(logFileName string) {
 	t := time.Now()
 	formatted := fmt.Sprintf("%d%02d%02d%02d%02d%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
