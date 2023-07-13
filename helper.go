@@ -2,7 +2,7 @@ package simplelog
 
 import (
 	"fmt"
-	"strings"
+	// "strings"
 )
 
 // convertToString converts an parameter of type any into a parameter of type string.
@@ -19,10 +19,10 @@ func convertToString(value any) string {
 }
 
 // parseValues parses the variadic function parameters, builds a message from them and returns it.
-func parseValues(values []any) string {
-	valueList := make([]string, len(values))
-	for i, v := range values {
-		valueList[i] = convertToString(v)
-	}
-	return strings.Join(valueList, " ")
-}
+// func parseValues(values []any) string {
+// 	valueList := make([]string, len(values))
+// 	for i, v := range values {
+// 		valueList[i] = convertToString(v)
+// 	}
+// 	return strings.Join(valueList, " ") // + "\n"
+// }

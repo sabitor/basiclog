@@ -3,7 +3,7 @@ package simplelog
 import (
 	"bufio"
 	"fmt"
-	"log"
+	// "log"
 	"os"
 	"time"
 )
@@ -45,8 +45,8 @@ type signal struct{}
 
 // a logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
-	target int    // the log target bits, e.g. stdout, file, and so on.
-	data   string // the payload of the log message, which will be sent to the log target
+	target int   // the log target bits, e.g. stdout, file, and so on.
+	data   []any // the payload of the log message, which will be sent to the log target
 }
 
 // a configMessage represents the config message which will be sent to the log service.
@@ -66,46 +66,70 @@ type simpleLogService struct {
 
 // stdoutLogger is a data collection to support logging to stdout.
 type stdoutLogger struct {
-	stdoutLogInstance *log.Logger
+	// stdoutLogInstance *log.Logger
+	stdoutLogInstance *logger
 }
 
 // fileLogger is a data collection to support logging to files.
 type fileLogger struct {
-	fileWriter      *bufio.Writer
-	fileDesc        *os.File
-	fileLogInstance *log.Logger
+	fileWriter *bufio.Writer
+	fileDesc   *os.File
+	// fileLogInstance *log.Logger
+	fileLogInstance *logger
 }
 
 // logWriter interface includes definitions of the following method signatures:
 //   - instance
 type logWriter interface {
-	instance() *log.Logger // create and return a *log.logger instance
+	// instance() *log.Logger // create and return a *log.logger instance
+	instance() *logger // create and return a *log.logger instance
 }
 
 // instance denotes the logWriter interface implementation by the stdoutLog type.
-func (s *stdoutLogger) instance() *log.Logger {
+// func (s *stdoutLogger) instance() *log.Logger {
+// 	if s.stdoutLogInstance == nil {
+// 		s.stdoutLogInstance = log.New(os.Stdout, "", 0)
+// 	}
+// 	return s.stdoutLogInstance
+// }
+
+func (s *stdoutLogger) instance() *logger {
 	if s.stdoutLogInstance == nil {
-		s.stdoutLogInstance = log.New(os.Stdout, "", 0)
+		s.stdoutLogInstance = new2(os.Stdout)
 	}
 	return s.stdoutLogInstance
 }
 
 // instance denotes the logWriter interface implementation by the fileLog type.
-func (f *fileLogger) instance() *log.Logger {
+// func (f *fileLogger) instance() *log.Logger {
+// 	if f.fileLogInstance == nil {
+// 		if f.fileDesc == nil {
+// 			panic(m001)
+// 		}
+// 		// f.fileWriter = bufio.NewWriter(s.fileDesc)
+// 		f.fileWriter = bufio.NewWriterSize(f.fileDesc, 16384)
+// 		f.fileLogInstance = log.New(f.fileWriter, "", log.Ldate|log.Ltime|log.Lmicroseconds)
+// 		f.fileWriter.WriteString("\n")
+// 	}
+// 	return f.fileLogInstance
+// }
+
+func (f *fileLogger) instance() *logger {
 	if f.fileLogInstance == nil {
 		if f.fileDesc == nil {
 			panic(m001)
 		}
 		// f.fileWriter = bufio.NewWriter(s.fileDesc)
 		f.fileWriter = bufio.NewWriterSize(f.fileDesc, 16384)
-		f.fileLogInstance = log.New(f.fileWriter, "", log.Ldate|log.Ltime|log.Lmicroseconds)
-		f.fileWriter.WriteString("\n")
+		f.fileLogInstance = new2(f.fileWriter)
+		f.fileDesc.WriteString("\n")
 	}
 	return f.fileLogInstance
 }
 
 // getLogWriter returns a log.Logger instance.
-func getLogWriter(lw logWriter) *log.Logger {
+// func getLogWriter(lw logWriter) *log.Logger {
+func getLogWriter(lw logWriter) *logger {
 	return lw.instance()
 }
 
@@ -204,7 +228,7 @@ func (s *simpleLogService) run() {
 				c.execServiceActionResponse <- signal{}
 			case switchlog:
 				flush()
-				s.changeLogFile(cfgMsg.data)
+				// s.changeLogFile(cfgMsg.data)
 				c.execServiceActionResponse <- signal{}
 			}
 		}
@@ -215,12 +239,14 @@ func (s *simpleLogService) run() {
 func writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case STDOUT:
-		getLogWriter(&s.stdoutLogger).Print(logMsg.data)
+		// getLogWriter(&s.stdoutLogger).Print(logMsg.data)
+		getLogWriter(&s.stdoutLogger).write(logMsg.data)
 	case FILE:
-		getLogWriter(&s.fileLogger).Print(logMsg.data)
+		// getLogWriter(&s.fileLogger).Print(logMsg.data)
+		getLogWriter(&s.fileLogger).write(logMsg.data)
 	case MULTI:
-		getLogWriter(&s.stdoutLogger).Print(logMsg.data)
-		getLogWriter(&s.fileLogger).Print(logMsg.data)
+		// getLogWriter(&s.stdoutLogger).Print(logMsg.data)
+		// getLogWriter(&s.fileLogger).Print(logMsg.data)
 	}
 }
 

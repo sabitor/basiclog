@@ -80,14 +80,13 @@ func SwitchLog(newLogName string) {
 // The logValues parameter consists of one or multiple values that are logged.
 func Log(target int, logValues ...any) {
 	if c.checkState(running) {
-		msg := parseValues(logValues)
 		switch target {
 		case STDOUT:
-			s.logData <- logMessage{STDOUT, msg}
+			s.logData <- logMessage{STDOUT, logValues}
 		case FILE:
-			s.logData <- logMessage{FILE, msg}
+			s.logData <- logMessage{FILE, logValues}
 		case MULTI:
-			s.logData <- logMessage{MULTI, msg}
+			s.logData <- logMessage{MULTI, logValues}
 		default:
 			panic(m007)
 		}
