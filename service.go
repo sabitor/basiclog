@@ -43,6 +43,15 @@ const (
 // signal to confirm actions across channels
 type signal struct{}
 
+// simpleLogService represents an object used to handle workflows triggered by the simplelog exported functions.
+type simpleLogService struct {
+	attribute     map[int]any        // the map which contains the log factory attributes
+	logData       chan logMessage    // the channel for sending log messages to the log service; this channel buffered
+	serviceConfig chan configMessage // the channel for sending config messages to the log service
+	stdoutLogger                     // the stdout logger
+	fileLogger                       // the file logger
+}
+
 // a logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
 	destination int   // the log destination bits, e.g. stdout, file, and so on.
@@ -53,15 +62,6 @@ type logMessage struct {
 type configMessage struct {
 	action int    // the configuration action, which is used to trigger certain config tasks by the log service
 	data   string // the data, which will be used by the config task
-}
-
-// simpleLogService is structure used to handle workflows triggered by the simplelog API.
-type simpleLogService struct {
-	attribute     map[int]any        // the map which contains the log factory attributes
-	logData       chan logMessage    // the channel for sending log messages to the log service; this channel buffered
-	serviceConfig chan configMessage // the channel for sending config messages to the log service
-	stdoutLogger                     // the stdout logger
-	fileLogger                       // the file logger
 }
 
 // stdoutLogger is a data collection to support logging to stdout.
@@ -90,6 +90,7 @@ func (s *stdoutLogger) instance() *logger {
 	return s.stdoutLogInstance
 }
 
+// REMOVE
 // instance denotes the logWriter interface implementation by the fileLog type.
 // func (f *fileLogger) instance() *log.Logger {
 // 	if f.fileLogInstance == nil {

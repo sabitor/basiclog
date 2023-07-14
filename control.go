@@ -8,7 +8,7 @@ import (
 // control instance
 var c = new(control)
 
-// control is a structure used to control the log service and log service workflows.
+// control represents an control object used to operate the log service and log service workflows.
 type control struct {
 	checkServiceState         chan int    // the channel for receiving a state check request from the caller
 	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
