@@ -211,7 +211,7 @@ func (s *simpleLogService) run() {
 			flush()
 			return
 		case logMsg = <-s.logData:
-			writeMessage(&logMsg)
+			writeMessage(logMsg)
 		case <-flushBufferInterval.C:
 			// only do the flush when the buffer has data to be written
 			if s.fileWriter.Buffered() > 0 {
@@ -232,7 +232,7 @@ func (s *simpleLogService) run() {
 }
 
 // writeMessage writes data of log messages to a dedicated target.
-func writeMessage(logMsg *logMessage) {
+func writeMessage(logMsg logMessage) {
 	switch logMsg.target {
 	case STDOUT:
 		// getLogWriter(&s.stdoutLogger).Print(logMsg.data)
@@ -251,9 +251,7 @@ func writeMessage(logMsg *logMessage) {
 // flush flushes(writes) messages, which are still buffered in the data channel.
 // Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
 func flush() {
-	var logMsg logMessage
 	for len(s.logData) > 0 {
-		logMsg = <-s.logData
-		writeMessage(&logMsg)
+		writeMessage(<-s.logData)
 	}
 }
