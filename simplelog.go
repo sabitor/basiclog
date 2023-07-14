@@ -1,8 +1,8 @@
 // Package simplelog is a logging package with the focus on simplicity,
 // ease of use and performance.
 // Once started, the simple logger runs as a service and listens for logging
-// requests. Logging requests can be send to different logging
-// destinations, such as standard out, a log file, or both.
+// requests. Logging requests can be send to different logging destinations,
+// such as standard out, a log file, or both.
 // The simple logger can be used simultaneously from multiple goroutines.
 package simplelog
 
