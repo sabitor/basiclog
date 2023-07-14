@@ -85,7 +85,7 @@ type logWriter interface {
 // instance denotes the logWriter interface implementation by the stdoutLog type.
 func (s *stdoutLogger) instance() *logger {
 	if s.stdoutLogInstance == nil {
-		s.stdoutLogInstance = new2(os.Stdout)
+		s.stdoutLogInstance = newLogger(os.Stdout)
 	}
 	return s.stdoutLogInstance
 }
@@ -112,7 +112,7 @@ func (f *fileLogger) instance() *logger {
 		}
 		// f.fileWriter = bufio.NewWriter(s.fileDesc)
 		f.fileWriter = bufio.NewWriterSize(f.fileDesc, 16384)
-		f.fileLogInstance = new2(f.fileWriter)
+		f.fileLogInstance = newLogger(f.fileWriter)
 		f.fileDesc.WriteString("\n")
 	}
 	return f.fileLogInstance

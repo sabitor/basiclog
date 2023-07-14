@@ -12,11 +12,10 @@ type logger struct {
 	lineBuf     []byte    // buffer for one line of log data
 }
 
-// New creates a new Logger.
+// newLogger instantiates a new Logger.
 // The destination parameter sets the destination to which log data will be written.
-func new2(destination io.Writer) *logger {
-	l := &logger{destination: destination}
-	return l
+func newLogger(destination io.Writer) *logger {
+	return &logger{destination: destination}
 }
 
 // write writes the output for a logging event.
