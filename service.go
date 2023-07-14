@@ -11,7 +11,7 @@ import (
 // simplelog service instance
 var s = new(simpleLogService)
 
-// log targets
+// log destinations
 const (
 	STDOUT = iota // write the log record to stdout
 	FILE          // write the log record to the log file
@@ -45,8 +45,8 @@ type signal struct{}
 
 // a logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
-	target int   // the log target bits, e.g. stdout, file, and so on.
-	data   []any // the payload of the log message, which will be sent to the log target
+	destination int   // the log destination bits, e.g. stdout, file, and so on.
+	data        []any // the payload of the log message, which will be sent to the log destination
 }
 
 // a configMessage represents the config message which will be sent to the log service.
@@ -66,33 +66,23 @@ type simpleLogService struct {
 
 // stdoutLogger is a data collection to support logging to stdout.
 type stdoutLogger struct {
-	// stdoutLogInstance *log.Logger
 	stdoutLogInstance *logger
 }
 
 // fileLogger is a data collection to support logging to files.
 type fileLogger struct {
-	fileWriter *bufio.Writer
-	fileDesc   *os.File
-	// fileLogInstance *log.Logger
+	fileWriter      *bufio.Writer
+	fileDesc        *os.File
 	fileLogInstance *logger
 }
 
 // logWriter interface includes definitions of the following method signatures:
 //   - instance
 type logWriter interface {
-	// instance() *log.Logger // create and return a *log.logger instance
-	instance() *logger // create and return a *log.logger instance
+	instance() *logger // create and return a *logger instance
 }
 
 // instance denotes the logWriter interface implementation by the stdoutLog type.
-// func (s *stdoutLogger) instance() *log.Logger {
-// 	if s.stdoutLogInstance == nil {
-// 		s.stdoutLogInstance = log.New(os.Stdout, "", 0)
-// 	}
-// 	return s.stdoutLogInstance
-// }
-
 func (s *stdoutLogger) instance() *logger {
 	if s.stdoutLogInstance == nil {
 		s.stdoutLogInstance = new2(os.Stdout)
@@ -114,6 +104,7 @@ func (s *stdoutLogger) instance() *logger {
 // 	return f.fileLogInstance
 // }
 
+// instance denotes the logWriter interface implementation by the fileLog type.
 func (f *fileLogger) instance() *logger {
 	if f.fileLogInstance == nil {
 		if f.fileDesc == nil {
@@ -231,18 +222,14 @@ func (s *simpleLogService) run() {
 	}
 }
 
-// writeMessage writes data of log messages to a dedicated target.
+// writeMessage writes data of log messages to a dedicated destination.
 func writeMessage(logMsg logMessage) {
-	switch logMsg.target {
+	switch logMsg.destination {
 	case STDOUT:
-		// getLogWriter(&s.stdoutLogger).Print(logMsg.data)
 		getLogWriter(&s.stdoutLogger).write(logMsg.data)
 	case FILE:
-		// getLogWriter(&s.fileLogger).Print(logMsg.data)
 		getLogWriter(&s.fileLogger).write(logMsg.data)
 	case MULTI:
-		// getLogWriter(&s.stdoutLogger).Print(logMsg.data)
-		// getLogWriter(&s.fileLogger).Print(logMsg.data)
 		getLogWriter(&s.stdoutLogger).write(logMsg.data)
 		getLogWriter(&s.fileLogger).write(logMsg.data)
 	}

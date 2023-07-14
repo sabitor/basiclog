@@ -4,7 +4,7 @@
 // Once started, the simple logger runs as a service and listens for logging
 // requests through the functions WriteTo[Stdout|File|Multiple].
 // As the name of the WriteTo functions suggests, the simple logger writes
-// to either standard out, a log file, or multiple targets.
+// to either standard out, a log file, or multiple destinations.
 package simplelog
 
 // message catalog
@@ -16,7 +16,7 @@ const (
 	m004 = "log service has not been started"
 	m005 = "log file already initialized"
 	m006 = "log file already exists"
-	m007 = "unknown log target specified"
+	m007 = "unknown log destination specified"
 )
 
 // Startup starts the log service.
@@ -72,12 +72,12 @@ func SwitchLog(newLogName string) {
 	}
 }
 
-// Log writes a log message to a specified target.
-// The target parameter specifies the log target, where the data will be written to.
+// Log writes a log message to a specified destination.
+// The destination parameter specifies the log destination, where the data will be written to.
 // The logValues parameter consists of one or multiple values that are logged.
-func Log(target int, logValues ...any) {
+func Log(destination int, logValues ...any) {
 	if c.checkState(running) {
-		switch target {
+		switch destination {
 		case STDOUT:
 			s.logData <- logMessage{STDOUT, logValues}
 		case FILE:

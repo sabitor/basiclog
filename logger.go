@@ -3,23 +3,28 @@ package simplelog
 import (
 	"fmt"
 	"io"
-	// "strconv"
 	// "time"
 )
 
+// TBD
 type logger struct {
-	out io.Writer // log output, e.g. stdout or bufio.Writer
-	buf []byte    // buffer for one line of prepared log data
+	destination io.Writer // log destination, e.g. stdout or bufio.Writer
+	lineBuf     []byte    // buffer for one line of log data
 }
 
-func new2(out io.Writer) *logger {
-	l := &logger{out: out}
+// New creates a new Logger.
+// The destination parameter sets the destination to which log data will be written.
+func new2(destination io.Writer) *logger {
+	l := &logger{destination: destination}
 	return l
 }
 
-func (l *logger) write(v []any) error {
-	l.buf = l.buf[:0]
-	l.buf = append(l.buf, fmt.Sprintln(v...)...)
-	_, err := l.out.Write(l.buf)
+// write writes the output for a logging event.
+// Thereby one log event corresponds to one line of output at the used log destination.
+// The logValues parameter consists of one or multiple values that are logged.
+func (l *logger) write(logValues []any) error {
+	l.lineBuf = l.lineBuf[:0]
+	l.lineBuf = append(l.lineBuf, fmt.Sprintln(logValues...)...)
+	_, err := l.destination.Write(l.lineBuf)
 	return err
 }
