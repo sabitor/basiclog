@@ -91,6 +91,9 @@ func (c *control) run(controlRunning chan bool) {
 					c.execServiceActionResponse <- signal{}
 				}()
 			case initlog:
+				if s.fileDesc != nil {
+					panic(m005)
+				}
 				append, _ := strconv.ParseBool(convertToString(s.attribute[appendlog]))
 				logName := convertToString(s.attribute[logfilename])
 				if !append {

@@ -50,9 +50,6 @@ func Shutdown(archive bool) {
 // The append flag indicates whether messages are appended to the existing log file (true),
 // or on a new run whether the old log is removed and a new log is created in its place (false).
 func InitLog(logName string, append bool) {
-	if s.fileDesc != nil {
-		panic(m005)
-	}
 	if c.checkState(running) {
 		s.setAttribut(appendlog, append)
 		s.setAttribut(logfilename, logName)
