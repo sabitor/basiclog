@@ -3,7 +3,7 @@ package simplelog
 import (
 	"fmt"
 	"io"
-	// "time"
+	"time"
 )
 
 // A logger represents an object that generates lines of output to an io.Writer.
@@ -23,7 +23,11 @@ func newLogger(destination io.Writer) *logger {
 // The logValues parameter consists of one or multiple values that are logged.
 func (l *logger) write(logValues []any) error {
 	l.lineBuf = l.lineBuf[:0]
+	t := time.Now()
+	l.lineBuf = append(l.lineBuf, t.Format("02-01-2006 15:04:05.000000")...)
+	l.lineBuf = append(l.lineBuf, ' ')
 	l.lineBuf = append(l.lineBuf, fmt.Sprintln(logValues...)...)
 	_, err := l.destination.Write(l.lineBuf)
+
 	return err
 }
