@@ -6,6 +6,10 @@
 // The simple logger can be used simultaneously from multiple goroutines.
 package simplelog
 
+import (
+	"os"
+)
+
 // message catalog
 const (
 	m000 = "control is not running"
@@ -16,6 +20,7 @@ const (
 	m005 = "log file already initialized"
 	m006 = "log file already exists"
 	m007 = "unknown log destination specified"
+	m008 = "only FILE or STDOUT are valid log destinations in this context"
 )
 
 // Startup starts the log service.
@@ -23,8 +28,9 @@ const (
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 func Startup(bufferSize int) {
 	if !c.checkState(running) {
-		s.setAttribut(logbuffer, bufferSize)
-		c.service(start)
+		val := convertToString(bufferSize)
+		c.startServiceTask <- configMessage{start, map[int]string{logbuffer: val}}
+		<-c.startServiceTaskResponse
 	} else {
 		panic(m002)
 	}
@@ -37,8 +43,9 @@ func Startup(bufferSize int) {
 // The archived log file is of the following format: <orig file name>_yymmddHHMMSS.
 func Shutdown(archive bool) {
 	if c.checkState(running) {
-		s.setAttribut(logarchive, archive)
-		c.service(stop)
+		val := convertToString(archive)
+		c.startServiceTask <- configMessage{stop, map[int]string{logarchive: val}}
+		<-c.startServiceTaskResponse
 	} else {
 		panic(m003)
 	}
@@ -50,9 +57,23 @@ func Shutdown(archive bool) {
 // or on a new run whether the old log is removed and a new log is created in its place (false).
 func InitLog(logName string, append bool) {
 	if c.checkState(running) {
-		s.setAttribut(appendlog, append)
-		s.setAttribut(logfilename, logName)
-		c.service(initlog)
+		var err error
+		if s.desc != nil {
+			panic(m005)
+		}
+		if !append {
+			// don't append - remove old log
+			if _, err = os.Stat(logName); err == nil {
+				if err = os.Remove(logName); err != nil {
+					panic(err)
+				}
+			}
+		}
+		val := convertToString(append)
+		s.configService <- configMessage{initlog, map[int]string{appendlog: val, logfilename: logName}}
+		if err = <-s.configServiceResponse; err != nil {
+			panic(err)
+		}
 	} else {
 		panic(m004)
 	}
@@ -64,18 +85,62 @@ func InitLog(logName string, append bool) {
 // The newLogName specifies the name of the new log to switch to.
 func SwitchLog(newLogName string) {
 	if c.checkState(running) {
-		s.setAttribut(logfilename, newLogName)
-		c.service(switchlog)
+		var err error
+		if _, err = os.Stat(newLogName); err == nil {
+			panic(m006)
+		}
+		s.configService <- configMessage{switchlog, map[int]string{logfilename: newLogName}}
+		if err = <-s.configServiceResponse; err != nil {
+			panic(err)
+		}
 	} else {
 		panic(m004)
 	}
 }
 
+// SetPrefix sets the prefix for logging lines.
+// The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
+// The prefix specifies the prefix for each logging line for a given log destination.
+// If the prefix should also contain actual date and time data, the following placeholders can be applied accordingly:
+//
+//	year: yyyy
+//	month: mm
+//	day: dd
+//	hour: HH
+//	minute: MI
+//	second: SS
+//	millisecond: f[5f]
+//
+// In addition, to distinguish and parse date and time information, placeholders have to be delimited by
+// <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.ffffff<DT>.
+// Furthermore, not all placeholders have to be used and they can be used in any order.
+func SetPrefix(destination int, prefix string) {
+	if c.checkState(running) {
+		preparedPrefix := preprocessPrefix(prefix)
+		switch destination {
+		case STDOUT:
+			s.configService <- configMessage{setprefix, map[int]string{stdoutlogprefix: preparedPrefix}}
+			<-s.configServiceResponse
+		case FILE:
+			s.configService <- configMessage{setprefix, map[int]string{filelogprefix: preparedPrefix}}
+			<-s.configServiceResponse
+		default:
+			panic(m008)
+		}
+	} else {
+		panic(m004)
+	}
+}
+
+// var mtx sync.Mutex
+// var isUp bool
+
 // Log writes a log message to a specified destination.
 // The destination parameter specifies the log destination, where the data will be written to.
 // The logValues parameter consists of one or multiple values that are logged.
 func Log(destination int, logValues ...any) {
-	if c.checkState(running) {
+	// if c.checkState(running) {
+	if s.isUp {
 		switch destination {
 		case STDOUT:
 			s.logData <- logMessage{STDOUT, logValues}
@@ -86,7 +151,8 @@ func Log(destination int, logValues ...any) {
 		default:
 			panic(m007)
 		}
-	} else {
-		panic(m004)
+		// } else {
+		// panic(m004)
+		// }
 	}
 }

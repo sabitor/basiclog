@@ -1,7 +1,6 @@
 package simplelog
 
 import (
-	"os"
 	"strconv"
 )
 
@@ -10,22 +9,22 @@ var c = new(control)
 
 // control represents an control object used to operate the log service and log service workflows.
 type control struct {
-	checkServiceState         chan int    // the channel for receiving a state check request from the caller
-	checkServiceStateResponse chan bool   // the channel for sending a boolean response to the caller
-	setServiceState           chan int    // the channel for receiving a state change request from the caller
-	execServiceAction         chan int    // the channel for receiving a service action request from the caller
-	execServiceActionResponse chan signal // the channel for sending a signal response to the caller to continue the workflow
-	stopService               chan signal // the channel that signals any listening goroutine to stop
+	startServiceTask          chan configMessage // receiver of a service task request from the caller
+	startServiceTaskResponse  chan signal        // sender of a signal response to the caller to continue the workflow
+	checkServiceState         chan int           // receiver of state check request from the caller
+	checkServiceStateResponse chan bool          // sender of a boolean response to the caller
+	setServiceState           chan int           // receiver of a state change request from the caller
+	stopService               chan signal        // to broadcast any listening goroutine to stop
 }
 
 // init starts the control.
 // The control monitors the log service and triggers actions to be started by the log service.
 func init() {
+	c.startServiceTask = make(chan configMessage)
+	c.startServiceTaskResponse = make(chan signal)
 	c.checkServiceState = make(chan int)
 	c.checkServiceStateResponse = make(chan bool)
 	c.setServiceState = make(chan int)
-	c.execServiceAction = make(chan int)
-	c.execServiceActionResponse = make(chan signal)
 
 	controlRunning := make(chan bool)
 	go c.run(controlRunning)
@@ -47,13 +46,14 @@ func (c *control) run(controlRunning chan bool) {
 	for {
 		select {
 		case controlRunning <- true:
-		case action := <-c.execServiceAction:
-			switch action {
+		case cfgMsg := <-c.startServiceTask:
+			switch cfgMsg.task {
 			case start:
 				// init log service resources
-				buf, _ := strconv.Atoi(convertToString(s.attribute[logbuffer]))
+				buf, _ := strconv.Atoi(cfgMsg.data[logbuffer])
 				s.logData = make(chan logMessage, buf)
-				s.serviceConfig = make(chan configMessage)
+				s.configService = make(chan configMessage)
+				s.configServiceResponse = make(chan error)
 				c.stopService = make(chan signal)
 
 				// reset state attribute (after the log service has restarted)
@@ -72,10 +72,11 @@ func (c *control) run(controlRunning chan bool) {
 							break
 						}
 					}
-					c.execServiceActionResponse <- signal{}
+					s.isUp = true
+					c.startServiceTaskResponse <- signal{}
 				}()
 			case stop:
-				archive, _ := strconv.ParseBool(convertToString(s.attribute[logarchive]))
+				archive, _ := strconv.ParseBool(cfgMsg.data[logarchive])
 				// stop log service
 				close(c.stopService) // closing the stopService channel sends a signal to all go routines which are listening to that channel
 				// reply to the caller when the service has stopped
@@ -88,30 +89,8 @@ func (c *control) run(controlRunning chan bool) {
 						}
 					}
 					s.releaseFileLogger(archive)
-					c.execServiceActionResponse <- signal{}
+					c.startServiceTaskResponse <- signal{}
 				}()
-			case initlog:
-				if s.fileDesc != nil {
-					panic(m005)
-				}
-				append, _ := strconv.ParseBool(convertToString(s.attribute[appendlog]))
-				logName := convertToString(s.attribute[logfilename])
-				if !append {
-					// don't append - remove old log
-					var err error
-					if _, err = os.Stat(logName); err == nil {
-						if err = os.Remove(logName); err != nil {
-							panic(err)
-						}
-					}
-				}
-				s.serviceConfig <- configMessage{initlog, logName}
-			case switchlog:
-				newLogName := convertToString(s.attribute[logfilename])
-				if _, err := os.Stat(newLogName); err == nil {
-					panic(m006)
-				}
-				s.serviceConfig <- configMessage{switchlog, newLogName}
 			}
 		case singleState = <-c.setServiceState:
 			if singleState == stopped {
@@ -129,12 +108,6 @@ func (c *control) run(controlRunning chan bool) {
 			}
 		}
 	}
-}
-
-// service handles actions to be processed by the log service.
-func (c *control) service(action int) signal {
-	c.execServiceAction <- action
-	return <-c.execServiceActionResponse
 }
 
 // checkState checks if the service has set the specified state.
