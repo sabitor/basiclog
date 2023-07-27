@@ -60,7 +60,7 @@ func preprocessPrefix(prefix string) string {
 		pattern := fmt.Sprintf("%s.*?%s", dateTimeTag, dateTimeTag)
 		dateTimeFilter := regexp.MustCompile(pattern)
 		// regexp to filter the partitions tagged with dateTime to strings consisting of time symbol strings and others
-		pattern = "d{2}|m{2}|y{4}|H{2}|MI|S{2}|F{6}|-|:|.|/|[|]|(|)| "
+		pattern = "d{2}|m{2}|y{4}|H{2}|MI|S{2}|F{6}|."
 		symbolFilter := regexp.MustCompile(pattern)
 		startIdxNonDateTimeParts, stopIdxNonDateTimeParts := 0, 0
 		partitions := dateTimeFilter.FindAllString(prefix, -1)
