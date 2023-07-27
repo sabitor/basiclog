@@ -100,7 +100,8 @@ func SwitchLog(newLogName string) {
 }
 
 // SetPrefix sets the prefix for logging lines.
-// If the prefix should also contain actual date and time data, the following placeholders can be applied accordingly:
+// If the prefix should also contain actual date and time data, the following placeholders
+// can be applied for given data:
 //
 //	year: yyyy
 //	month: mm
@@ -109,7 +110,6 @@ func SwitchLog(newLogName string) {
 //	minute: MI
 //	second: SS
 //	millisecond: f[5f]
-//	special characters: -:./[]()<SPACE>
 //
 // In addition, to distinguish and parse date and time information, placeholders have to be delimited by
 // <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.ffffff<DT>.
