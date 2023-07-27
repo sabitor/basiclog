@@ -44,7 +44,7 @@ type logMessage struct {
 
 // a configMessage represents the object which will be sent to the log service for configuration purposes.
 type configMessage struct {
-	task int         // used to trigger certain config tasks
+	task int         // refers to log service tasks used to trigger certain config tasks
 	data map[int]any // config data used by the config task
 }
 
