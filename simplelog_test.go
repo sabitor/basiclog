@@ -11,16 +11,17 @@ import (
 func Test_service_startup(t *testing.T) {
 	Startup(1)
 
-	if a := c.checkState(running); a != true {
+	if a := s.isActive(); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
-		close(c.stopService)
-		for {
-			// wait until the service is up
-			if !c.checkState(running) {
-				break
-			}
-		}
+		s.stop(false)
+		s.setActive(false)
+		// for {
+		// 	// wait until the service is up
+		// 	if !c.checkState(running) {
+		// 		break
+		// 	}
+		// }
 	}
 }
 
@@ -28,15 +29,10 @@ func Test_service_shutdown(t *testing.T) {
 	Startup(1)
 	Shutdown(false)
 
-	if a := c.checkState(running); a == true {
+	if a := s.isActive(); a == true {
 		t.Error("Expected state false but got", a)
-		close(c.stopService)
-		for {
-			// wait until the service is stopped
-			if c.checkState(stopped) {
-				break
-			}
-		}
+		s.stop(false)
+		s.setActive(false)
 	}
 }
 
@@ -50,7 +46,7 @@ func Test_service_initLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
+	InitLog(logFile, false)
 	Shutdown(false)
 
 	data, err := os.Stat(logFile)
@@ -79,7 +75,7 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile1, false)
+	InitLog(logFile1, false)
 	SwitchLog(logFile2)
 	Shutdown(false)
 
@@ -114,7 +110,7 @@ func Test_service_writeToStdout(t *testing.T) {
 	os.Stdout = w
 
 	Startup(1)
-	WriteToStdout("The answer to all questions is", 42)
+	Log(STDOUT, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()
@@ -138,8 +134,8 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
-	WriteToFile("The answer to all questions is", 42)
+	InitLog(logFile, false)
+	Log(FILE, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	data, err := os.ReadFile(logFile)
@@ -166,8 +162,8 @@ func Test_service_writeToMulti(t *testing.T) {
 	}
 
 	Startup(1)
-	InitLogFile(logFile, false)
-	WriteToMulti("The answer to all questions is", 42)
+	InitLog(logFile, false)
+	Log(MULTI, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()
