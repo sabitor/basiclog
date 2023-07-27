@@ -125,7 +125,7 @@ func Startup(bufferSize int) {
 		configService = make(chan configMessage)
 		configServiceResponse = make(chan error)
 		stopService = make(chan bool)
-		stopServiceResponse = make(chan signal)
+		stopServiceResponse = make(chan struct{})
 		serviceRunning := make(chan bool)
 		go s.run(serviceRunning)
 		if !<-serviceRunning {

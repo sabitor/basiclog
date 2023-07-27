@@ -14,7 +14,7 @@ var (
 	configService         chan configMessage      // to receive config service requests from the caller
 	configServiceResponse chan error              // to send an error response to the caller to continue the workflow
 	stopService           chan bool               // to receive a stop service request from the caller
-	stopServiceResponse   chan signal             // to send a signal to the caller to continue the workflow
+	stopServiceResponse   chan struct{}           // to send a signal to the caller to continue the workflow
 )
 
 // simpleLogService represents an object used to handle workflows triggered by the simplelog exported functions.
