@@ -127,6 +127,7 @@ func Startup(bufferSize int) {
 		stopService = make(chan bool)
 		stopServiceResponse = make(chan struct{})
 		serviceRunning := make(chan bool)
+
 		go s.run(serviceRunning)
 		if !<-serviceRunning {
 			panic(m000)
