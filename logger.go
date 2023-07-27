@@ -12,7 +12,7 @@ type logger struct {
 	lineBuf     []byte    // buffer for one line of log data
 }
 
-// newLogger instantiates a new Logger.
+// newLogger instantiates a new logger.
 // The destination parameter sets the destination to which log data will be written.
 func newLogger(destination io.Writer) *logger {
 	return &logger{destination: destination}
@@ -20,11 +20,11 @@ func newLogger(destination io.Writer) *logger {
 
 // write writes the output for a logging event.
 // Thereby one logging event corresponds to one line of output at the used log destination.
-// The logValues parameter consists of one or multiple values that are logged.
 func (l *logger) write(logMsg *logMessage) error {
 	t := time.Now()
 	l.lineBuf = l.lineBuf[:0] // reset logging line
 
+	// append the prefix to the logging line
 	switch logMsg.destination {
 	case STDOUT:
 		if len(s.stdoutLogger.prefix) > 0 {
@@ -38,7 +38,9 @@ func (l *logger) write(logMsg *logMessage) error {
 		}
 	}
 
-	l.lineBuf = append(l.lineBuf, fmt.Sprintln(logMsg.data)...)
+	// append payload to the logging line
+	l.lineBuf = append(l.lineBuf, fmt.Sprintln(logMsg.data...)...)
+	// write logging line to the log destination
 	_, err := l.destination.Write(l.lineBuf)
 	if err != nil {
 		panic(err)

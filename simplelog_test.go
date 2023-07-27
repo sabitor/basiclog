@@ -11,16 +11,17 @@ import (
 func Test_service_startup(t *testing.T) {
 	Startup(1)
 
-	if a := c.checkState(running); a != true {
+	if a := s.isActive(); a != true {
 		t.Error("Expected state true but got", a)
 	} else {
-		close(c.stopService)
-		for {
-			// wait until the service is up
-			if !c.checkState(running) {
-				break
-			}
-		}
+		s.stop(false)
+		s.setActive(false)
+		// for {
+		// 	// wait until the service is up
+		// 	if !c.checkState(running) {
+		// 		break
+		// 	}
+		// }
 	}
 }
 
@@ -28,15 +29,10 @@ func Test_service_shutdown(t *testing.T) {
 	Startup(1)
 	Shutdown(false)
 
-	if a := c.checkState(running); a == true {
+	if a := s.isActive(); a == true {
 		t.Error("Expected state false but got", a)
-		close(c.stopService)
-		for {
-			// wait until the service is stopped
-			if c.checkState(stopped) {
-				break
-			}
-		}
+		s.stop(false)
+		s.setActive(false)
 	}
 }
 

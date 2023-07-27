@@ -3,28 +3,40 @@ package simplelog
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // convertToString converts an parameter of type any into a string.
-// The value parameter contains the value to be converted into a string.
 func convertToString(value any) string {
-	var str string
+	var s string
 	var ok bool
 
-	if str, ok = value.(string); !ok {
+	if s, ok = value.(string); !ok {
 		// it's not already a string - convert it
-		str = fmt.Sprint(value)
+		s = fmt.Sprint(value)
 	}
 
-	return str
+	return s
+}
+
+// convertToInt converts an parameter of type any into an integer.
+func convertToInt(value any) int {
+	var i int
+	var ok bool
+
+	if i, ok = value.(int); !ok {
+		// it's not already an integer - convert it
+		i, _ = strconv.Atoi(fmt.Sprint(value))
+	}
+
+	return i
 }
 
 // preprocessPrefix processes a specific logging prefix in a way that all time symbol
 // placeholders are replaced with the corresponding reference time placeholders.
 // If the input prefix does not contain a time symbol placeholder, the input prefix is
 // returned unmodified to the caller.
-// The prefix parameter contains the logging prefix to be preprocessed.
 func preprocessPrefix(prefix string) string {
 	var newPrefix string
 	timeSymbolToReferenceTime := map[string]string{
@@ -45,9 +57,11 @@ func preprocessPrefix(prefix string) string {
 		}
 
 		// regexp to filter the input prefix by the dateTimeTag
-		dateTimeFilter := regexp.MustCompile(`<DT>.*?<DT>`)
+		pattern := fmt.Sprintf("%s.*?%s", dateTimeTag, dateTimeTag)
+		dateTimeFilter := regexp.MustCompile(pattern)
 		// regexp to filter the partitions tagged with dateTime to strings consisting of time symbol strings and others
-		symbolFilter := regexp.MustCompile(`d{2}|m{2}|y{4}|H{2}|MI|S{2}|F{6}|-|:|.|/|[|]|(|)| `)
+		pattern = "d{2}|m{2}|y{4}|H{2}|MI|S{2}|F{6}|-|:|.|/|[|]|(|)| "
+		symbolFilter := regexp.MustCompile(pattern)
 		startIdxNonDateTimeParts, stopIdxNonDateTimeParts := 0, 0
 		partitions := dateTimeFilter.FindAllString(prefix, -1)
 
