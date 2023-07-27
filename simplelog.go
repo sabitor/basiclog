@@ -21,39 +21,23 @@ const (
 	m006 = "unknown log destination specified"
 )
 
-// Startup starts the log service.
-// The log service runs in its own goroutine.
-// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
-func Startup(bufferSize int) {
-	if !s.isActive() {
-		dataQueue = make(chan logMessage, bufferSize)
-		configService = make(chan configMessage)
-		configServiceResponse = make(chan error)
-		stopService = make(chan bool)
-		stopServiceResponse = make(chan signal)
-		serviceRunning := make(chan bool)
-		go s.run(serviceRunning)
-		if !<-serviceRunning {
-			panic(m000)
-		} else {
-			s.setActive(true)
+// Log writes a log message to a specified destination.
+// The destination parameter specifies the log destination, where the data will be written to.
+// The logValues parameter consists of one or multiple values that are logged.
+func Log(destination int, logValues ...any) {
+	if s.isActive() {
+		switch destination {
+		case STDOUT:
+			dataQueue <- logMessage{STDOUT, logValues}
+		case FILE:
+			dataQueue <- logMessage{FILE, logValues}
+		case MULTI:
+			dataQueue <- logMessage{MULTI, logValues}
+		default:
+			panic(m006)
 		}
 	} else {
-		panic(m002)
-	}
-}
-
-// Shutdown stops the log service and does some cleanup.
-// Before the log service is stopped, all pending log messages are flushed and resources are released.
-// Archiving a log file means that it will be renamed and no new messages will be appended on a new run.
-// The archived log file is of the following format: <orig file name>_yyyymmddHHMMSS.
-// The archivelog flag indicates whether the log file will be archived (true) or not (false).
-func Shutdown(archivelog bool) {
-	if s.isActive() {
-		s.stop(archivelog)
-		s.setActive(false)
-	} else {
-		panic(m003)
+		panic(m004)
 	}
 }
 
@@ -74,23 +58,6 @@ func InitLog(logName string, append bool) {
 			flag = os.O_TRUNC | os.O_CREATE | os.O_WRONLY
 		}
 		configService <- configMessage{initlog, map[int]any{logflag: flag, logfilename: logName}}
-		if err = <-configServiceResponse; err != nil {
-			panic(err)
-		}
-	} else {
-		panic(m004)
-	}
-}
-
-// SwitchLog closes the current log file and a new log file with the specified name is created and used.
-// Thereby, the current log file is not deleted, the new log file must not exist and the log service
-// doesn't need to be stopped for this task. The new log file must not exist.
-// The newLogName specifies the name of the new log to switch to.
-func SwitchLog(newLogName string) {
-	if s.isActive() {
-		var err error
-		flag := os.O_EXCL | os.O_CREATE | os.O_WRONLY
-		configService <- configMessage{switchlog, map[int]any{logflag: flag, logfilename: newLogName}}
 		if err = <-configServiceResponse; err != nil {
 			panic(err)
 		}
@@ -135,20 +102,53 @@ func SetPrefix(destination int, prefix string) {
 	}
 }
 
-// Log writes a log message to a specified destination.
-// The destination parameter specifies the log destination, where the data will be written to.
-// The logValues parameter consists of one or multiple values that are logged.
-func Log(destination int, logValues ...any) {
+// Shutdown stops the log service and does some cleanup.
+// Before the log service is stopped, all pending log messages are flushed and resources are released.
+// Archiving a log file means that it will be renamed and no new messages will be appended on a new run.
+// The archived log file is of the following format: <orig file name>_yyyymmddHHMMSS.
+// The archivelog flag indicates whether the log file will be archived (true) or not (false).
+func Shutdown(archivelog bool) {
 	if s.isActive() {
-		switch destination {
-		case STDOUT:
-			dataQueue <- logMessage{STDOUT, logValues}
-		case FILE:
-			dataQueue <- logMessage{FILE, logValues}
-		case MULTI:
-			dataQueue <- logMessage{MULTI, logValues}
-		default:
-			panic(m006)
+		s.stop(archivelog)
+		s.setActive(false)
+	} else {
+		panic(m003)
+	}
+}
+
+// Startup starts the log service.
+// The log service runs in its own goroutine.
+// The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
+func Startup(bufferSize int) {
+	if !s.isActive() {
+		dataQueue = make(chan logMessage, bufferSize)
+		configService = make(chan configMessage)
+		configServiceResponse = make(chan error)
+		stopService = make(chan bool)
+		stopServiceResponse = make(chan signal)
+		serviceRunning := make(chan bool)
+		go s.run(serviceRunning)
+		if !<-serviceRunning {
+			panic(m000)
+		} else {
+			s.setActive(true)
+		}
+	} else {
+		panic(m002)
+	}
+}
+
+// SwitchLog closes the current log file and a new log file with the specified name is created and used.
+// Thereby, the current log file is not deleted, the new log file must not exist and the log service
+// doesn't need to be stopped for this task. The new log file must not exist.
+// The newLogName specifies the name of the new log to switch to.
+func SwitchLog(newLogName string) {
+	if s.isActive() {
+		var err error
+		flag := os.O_EXCL | os.O_CREATE | os.O_WRONLY
+		configService <- configMessage{switchlog, map[int]any{logflag: flag, logfilename: newLogName}}
+		if err = <-configServiceResponse; err != nil {
+			panic(err)
 		}
 	} else {
 		panic(m004)
