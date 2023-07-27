@@ -33,9 +33,6 @@ const (
 	stdoutlogprefix        // defines the prefix that is placed in front of each logging line in stdout
 )
 
-// signal to confirm actions across channels
-type signal struct{}
-
 // a logMessage represents the log message which will be sent to the log service.
 type logMessage struct {
 	destination int   // the log destination bits, e.g. stdout, file, and so on.
