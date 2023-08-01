@@ -52,8 +52,8 @@ func Log(destination int, logValues ...any) {
 //
 // In addition, to distinguish and parse date and time information, placeholders have to be delimited by
 // <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.ffffff<DT>.
-// Note that not all placeholders have to be used , they can be used in any order and even
-// non-datetime characters or strings can integrated.
+// Note that not all placeholders have to be used, they can be used in any order and even
+// non-datetime characters or strings can be integrated.
 //
 // The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
 // The prefix specifies the prefix for each logging line for a given log destination.
