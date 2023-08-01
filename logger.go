@@ -24,7 +24,7 @@ func (l *logger) write(logMsg *logMessage) error {
 	t := time.Now()
 	l.lineBuf = l.lineBuf[:0] // reset logging line
 
-	// append the prefix to the logging line
+	// prepend the prefix to the logging line
 	switch logMsg.destination {
 	case STDOUT:
 		if len(s.stdoutLogger.prefix) > 0 {
