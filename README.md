@@ -14,7 +14,7 @@ func Log(destination int, logValues ...any)
 // SetPrefix sets the prefix for logging lines.
 func SetPrefix(destination int, prefix string)
 
-// Shutdown stops the log service inclusing post-processing and cleanup.
+// Shutdown stops the log service including post-processing and cleanup.
 func Shutdown(archivelog bool)
 
 // Startup starts the log service.
