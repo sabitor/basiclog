@@ -5,44 +5,24 @@ Once started, the simple logger runs as a service and listens for logging reques
 The simple logger writes log records to either standard out, a log file, or standard out and a log file simultaneously (multi log).
 
 ## simplelog API
-In order to use or work with the simplelog package, the following functions were exposed to be used as the simplelog API: 
+In order to use or work with the simplelog package, the following set of functions were exposed to be used as the simplelog API: 
 
 ```
+// Log writes a log message to a specified destination.
 func Log(destination int, logValues ...any)
-```
-Log writes a log message to a specified destination.
-The destination parameter specifies the log destination, where the data will be written to.
-The logValues parameter consists of one or multiple values that are logged.
 
-```
+// SetPrefix sets the prefix for logging lines.
 func SetPrefix(destination int, prefix string)
-```
-SetPrefix sets the prefix for logging lines.
-The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
-The prefix specifies the prefix for each logging line for a given log destination.
 
-```
+// Shutdown stops the log service inclusing post-processing and cleanup.
 func Shutdown(archivelog bool)
-```
-Shutdown stops the log service and does some cleanup.
-Before the log service is stopped, all pending log messages are flushed and resources are released.
-If enabled, the closed log can also be archived. In this context archiving a log file means that it will be renamed and no new messages will be appended on a new run. The archived log file is of the following format: \<orig log name\>_yyyymmddHHMMSS.
-The archivelog flag indicates whether the log file will be archived (true) or not (false).
 
-
-```
+// Startup starts the log service.
 func Startup(bufferSize int)
-```
-Startup starts the log service.
-The log service runs in its own goroutine.
-The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
 
-```
+// SwitchLog closes the current log file and a new log file with the specified name is created and used.
 func SwitchLog(newLogName string)
 ```
-SwitchLog closes the current log file and a new log file with the specified name is created and used.
-Thereby, the current log file is not deleted, the new log file must not exist and the log service doesn't need to be stopped for this task. The new log file must not exist.
-The newLogName specifies the name of the new log to switch to.
 
 ## How to use simplelog
 Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
