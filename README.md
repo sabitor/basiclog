@@ -19,7 +19,7 @@ func SetPrefix(destination int, prefix string)
 func Shutdown(archivelog bool)
 
 // Startup starts the log service.
-func Startup(bufferSize int)
+func Startup(logName string, appendLog bool, bufferSize int)
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
 func SwitchLog(newLogName string)
