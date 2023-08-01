@@ -2,26 +2,25 @@ package simplelog
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 )
 
 var (
-	s                     = new(simpleLogService) // create simplelog service instance
-	dataQueue             chan logMessage         // to receive log data from the caller; this channel is buffered
-	configService         chan configMessage      // to receive config service requests from the caller
-	configServiceResponse chan error              // to send an error response to the caller to continue the workflow
-	stopService           chan bool               // to receive a stop service request from the caller
-	stopServiceResponse   chan struct{}           // to send a signal to the caller to continue the workflow
+	s = new(simpleLogService) // create instance of a simplelog service
 )
 
 // simpleLogService represents an object used to handle workflows triggered by the simplelog exported functions.
 type simpleLogService struct {
-	active       bool // flag to indicate whether the log service is up and running
-	stdoutLogger      // the stdout logger instance
-	fileLogger        // the file logger instance
+	active                bool               // flag to indicate whether the log service is up and running
+	stdoutLogger                             // the stdout logger instance
+	fileLogger                               // the file logger instance
+	dataQueue             chan logMessage    // to receive log data from the caller; this channel is buffered
+	configService         chan configMessage // to receive config service requests from the caller
+	configServiceResponse chan error         // to send an error response to the caller to continue the workflow
+	stopService           chan bool          // to receive a stop service request from the caller
+	stopServiceResponse   chan struct{}      // to send a signal to the caller to continue the workflow
 }
 
 // isActive returns true, if the log service is up and running, false otherwise.
@@ -45,12 +44,10 @@ func (sl *stdoutLogger) instance() *logger {
 // instance denotes the logWriter interface implementation by the fileLogger type.
 func (f *fileLogger) instance() *logger {
 	if f.self == nil {
-		if f.desc == nil {
-			panic(m001)
-		}
-		// f.fileWriter = bufio.NewWriter(s.fileDesc)
-		f.writer = bufio.NewWriterSize(f.desc, 16384)
+		f.writer = bufio.NewWriter(s.desc)
+		// f.writer = bufio.NewWriterSize(f.desc, 10000000)
 		f.self = newLogger(f.writer)
+		// f.self = newLogger(f.desc)
 		f.desc.WriteString("\n")
 	}
 	return f.self
@@ -68,39 +65,37 @@ func (f *fileLogger) setupLogFile(flag int, logName string) error {
 	return err
 }
 
-// releaseFileLogger releases all resources allocated by the fileLogger structure.
+// releaseFileLogger releases all fileLogger resources.
 func (f *fileLogger) releaseFileLogger(archive bool) error {
 	var err error
-	if f.desc != nil {
-		if f.writer != nil {
-			if f.writer.Buffered() >= 0 {
-				// only do the flush when the buffer has data to be written
-				f.writer.Flush()
-			}
+	if f.self != nil {
+		if f.writer.Buffered() >= 0 {
+			// only do the flush when the buffer has data to be written
+			f.writer.Flush()
 		}
-		if err = f.desc.Close(); err != nil {
+	}
+	if err = f.desc.Close(); err != nil {
+		return err
+	}
+	if archive {
+		if err = s.archiveLogFile(s.desc.Name()); err != nil {
 			return err
 		}
-		if archive {
-			s.archiveLogFile(s.desc.Name())
-		}
-		f.writer = nil
-		f.desc = nil
-		f.self = nil
-	} else {
-		err = errors.New(m001)
 	}
+	f.writer = nil
+	f.desc = nil
+	f.self = nil
 	return err
 }
 
 // archiveLogFile archives the log file.
-func (f *fileLogger) archiveLogFile(logFileName string) {
+func (f *fileLogger) archiveLogFile(logFileName string) error {
+	var err error
 	t := time.Now()
 	formatted := fmt.Sprintf("%d%02d%02d%02d%02d%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 	logArchiveName := logFileName + "_" + formatted
-	if err := os.Rename(logFileName, logArchiveName); err != nil {
-		panic(err)
-	}
+	err = os.Rename(logFileName, logArchiveName)
+	return err
 }
 
 // changeLogFile changes the name of the log file.
@@ -117,8 +112,8 @@ func (f *fileLogger) changeLogFile(flag int, newLogName string) error {
 // stop stops the log service.
 // A part of this step the underlying goroutine is also stopped.
 func (s *simpleLogService) stop(archivelog bool) {
-	stopService <- archivelog
-	<-stopServiceResponse
+	s.stopService <- archivelog
+	<-s.stopServiceResponse
 }
 
 // run represents the log service.
@@ -131,7 +126,7 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 	var logData logMessage
 	var cfgData configMessage
 
-	defer close(stopServiceResponse)
+	defer close(s.stopServiceResponse)
 
 	// ticker to periodically trigger a flush of the log file buffer
 	flushBufferInterval := time.NewTicker(1000 * time.Millisecond)
@@ -140,11 +135,11 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 	for {
 		select {
 		case serviceRunning <- true:
-		case archivelog := <-stopService:
+		case archivelog := <-s.stopService:
 			flush()
 			s.releaseFileLogger(archivelog)
 			return
-		case logData = <-dataQueue:
+		case logData = <-s.dataQueue:
 			writeMessage(&logData)
 		case <-flushBufferInterval.C:
 			if s.writer != nil {
@@ -153,28 +148,28 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 					s.writer.Flush()
 				}
 			}
-		case cfgData = <-configService:
+		case cfgData = <-s.configService:
 			switch cfgData.task {
 			case initlog:
 				flag := convertToInt(cfgData.data[logflag])
 				logName := convertToString(cfgData.data[logfilename])
 				err := s.setupLogFile(flag, logName)
-				configServiceResponse <- err
+				s.configServiceResponse <- err
 			case switchlog:
 				flush()
 				flag := convertToInt(cfgData.data[logflag])
 				newLogName := convertToString(cfgData.data[logfilename])
 				err := s.changeLogFile(flag, newLogName)
-				configServiceResponse <- err
+				s.configServiceResponse <- err
 			case setprefix:
 				if logPrefix, ok := cfgData.data[stdoutlogprefix]; ok {
 					s.stdoutLogger.prefix = convertToString(logPrefix)
 				} else if logPrefix, ok = cfgData.data[filelogprefix]; ok {
 					s.fileLogger.prefix = convertToString(logPrefix)
 				} else {
-					panic(m006)
+					panic(m003)
 				}
-				configServiceResponse <- nil
+				s.configServiceResponse <- nil
 			}
 		}
 	}
@@ -196,12 +191,12 @@ func writeMessage(logMsg *logMessage) {
 
 }
 
-// flush flushes(writes) messages, which are still buffered in the data channel.
-// Buffered channels in Go are always FIFO, so messages are flushed in FIFO approach.
+// flush flushes(writes) messages, which are still buffered in the data channel
+// and not yet wrtitten do disc.
 func flush() {
 	var m logMessage
-	for len(dataQueue) > 0 {
-		m = <-dataQueue
+	for len(s.dataQueue) > 0 {
+		m = <-s.dataQueue
 		writeMessage(&m)
 	}
 }
