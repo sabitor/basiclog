@@ -28,7 +28,7 @@ const (
 const (
 	logbuffer       = iota // defines the buffer size of the logMessage channel
 	logfilename            // defines the log file name to be used
-	logflag                // a flag which specifies how to open the log file
+	logflag                // a flag or a combination of flags which specifies how to open the log file
 	filelogprefix          // defines the prefix that is placed in front of each logging line in the log file
 	stdoutlogprefix        // defines the prefix that is placed in front of each logging line in stdout
 )
