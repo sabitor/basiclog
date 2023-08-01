@@ -15,13 +15,6 @@ The destination parameter specifies the log destination, where the data will be 
 The logValues parameter consists of one or multiple values that are logged.
 
 ```
-func InitLog(logName string, append bool)
-```
-InitLog initializes the log file.
-The logName specifies the name of the log file.
-The append flag indicates whether messages are appended to the existing log file (true), or on a new run whether the old log is truncated (false).
-
-```
 func SetPrefix(destination int, prefix string)
 ```
 SetPrefix sets the prefix for logging lines.
@@ -67,7 +60,7 @@ Using the log framework is pretty easy. After the log service has been started o
 
 	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.ffffff\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
 
-	Note that not all placeholders have to be used and they can be used in any order.
+	Note that not all placeholders have to be used, they can be used in any order and even non-datetime characters or strings can be integrated.
 
 3) If log messages will only be sent to standard out, there is no need to setup a log file. If, on the other hand, it should also be written to a log file, the log file has to be initialized once by calling the *InitLog* function before log messages can be written to the log file.
 4) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created (a file with the new name must not already exist). The log service does not have to be stopped for this purpose.
@@ -85,14 +78,13 @@ import (
 )
 
 func main() {
+    log1 := "log1.txt"
     logBuffer := 2 // number of log messages which can be buffered before the log service blocks
-    simplelog.Startup(logBuffer)
+    simplelog.Startup(log1, false, logBuffer)
     defer simplelog.Shutdown(false)
 
     simplelog.SetPrefix(simplelog.STDOUT, "STDOUT$")
     simplelog.Log(simplelog.STDOUT, ">>> Start application")
-    log1 := "log1.txt"
-    simplelog.InitLog(log1, false)
     simplelog.SetPrefix(simplelog.FILE, "<DT>dd/mm/yyyy HH:MI:SS.FFFFFF<DT>")
     simplelog.Log(simplelog.STDOUT, "Log file is", log1)
     simplelog.Log(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
