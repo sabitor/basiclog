@@ -48,7 +48,7 @@ func Log(destination int, logValues ...any) {
 //	hour: HH
 //	minute: MI
 //	second: SS
-//	millisecond: f[5f]
+//	millisecond: F[5F]
 //
 // In addition, to distinguish and parse date and time information, placeholders have to be delimited by
 // <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.ffffff<DT>.
