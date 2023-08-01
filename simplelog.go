@@ -13,12 +13,9 @@ import (
 // message catalog
 const (
 	m000 = "log service is not running"
-	m001 = "log file not initialized"
-	m002 = "log service was already started"
-	m003 = "log service is not running"
-	m004 = "log service has not been started"
-	m005 = "log file already initialized"
-	m006 = "unknown log destination specified"
+	m001 = "log service was already started"
+	m002 = "log service has not been started"
+	m003 = "unknown log destination specified"
 )
 
 // Log writes a log message to a specified destination.
@@ -28,41 +25,16 @@ func Log(destination int, logValues ...any) {
 	if s.isActive() {
 		switch destination {
 		case STDOUT:
-			dataQueue <- logMessage{STDOUT, logValues}
+			s.dataQueue <- logMessage{STDOUT, logValues}
 		case FILE:
-			dataQueue <- logMessage{FILE, logValues}
+			s.dataQueue <- logMessage{FILE, logValues}
 		case MULTI:
-			dataQueue <- logMessage{MULTI, logValues}
+			s.dataQueue <- logMessage{MULTI, logValues}
 		default:
-			panic(m006)
+			panic(m003)
 		}
 	} else {
-		panic(m004)
-	}
-}
-
-// InitLog initializes the log file.
-// The logName specifies the name of the log file.
-// The append flag indicates whether messages are appended to the existing log file (true),
-// or on a new run whether the old log is truncated (false).
-func InitLog(logName string, append bool) {
-	if s.isActive() {
-		if s.desc != nil {
-			panic(m005)
-		}
-		var err error
-		var flag int
-		if append {
-			flag = os.O_APPEND | os.O_CREATE | os.O_WRONLY
-		} else {
-			flag = os.O_TRUNC | os.O_CREATE | os.O_WRONLY
-		}
-		configService <- configMessage{initlog, map[int]any{logflag: flag, logfilename: logName}}
-		if err = <-configServiceResponse; err != nil {
-			panic(err)
-		}
-	} else {
-		panic(m004)
+		panic(m002)
 	}
 }
 
@@ -80,7 +52,8 @@ func InitLog(logName string, append bool) {
 //
 // In addition, to distinguish and parse date and time information, placeholders have to be delimited by
 // <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.ffffff<DT>.
-// Note that not all placeholders have to be used and they can be used in any order.
+// Note that not all placeholders have to be used , they can be used in any order and even
+// non-datetime characters or strings can integrated.
 //
 // The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
 // The prefix specifies the prefix for each logging line for a given log destination.
@@ -89,43 +62,47 @@ func SetPrefix(destination int, prefix string) {
 		preparedPrefix := preprocessPrefix(prefix)
 		switch destination {
 		case STDOUT:
-			configService <- configMessage{setprefix, map[int]any{stdoutlogprefix: preparedPrefix}}
-			<-configServiceResponse
+			s.configService <- configMessage{setprefix, map[int]any{stdoutlogprefix: preparedPrefix}}
+			<-s.configServiceResponse
 		case FILE:
-			configService <- configMessage{setprefix, map[int]any{filelogprefix: preparedPrefix}}
-			<-configServiceResponse
+			s.configService <- configMessage{setprefix, map[int]any{filelogprefix: preparedPrefix}}
+			<-s.configServiceResponse
 		default:
-			panic(m006)
+			panic(m003)
 		}
 	} else {
-		panic(m004)
+		panic(m002)
 	}
 }
 
-// Shutdown stops the log service and does some cleanup.
+// Shutdown stops the log service inclusing post-processing and cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 // Archiving a log file means that it will be renamed and no new messages will be appended on a new run.
-// The archived log file is of the following format: <orig file name>_yyyymmddHHMMSS.
+// The archived log file is of the following format: <log file name>_yyyymmddHHMMSS.
 // The archivelog flag indicates whether the log file will be archived (true) or not (false).
 func Shutdown(archivelog bool) {
 	if s.isActive() {
 		s.stop(archivelog)
 		s.setActive(false)
 	} else {
-		panic(m003)
+		panic(m000)
 	}
 }
 
 // Startup starts the log service.
 // The log service runs in its own goroutine.
+// The logName parameter specifies the name of the log file.
+// With appendLog it is possible to specify, if a new run of the application first truncates the
+// old log before new log entries are written (false) or if new messages are appended to the already
+// existing log (true).
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
-func Startup(bufferSize int) {
+func Startup(logName string, appendlog bool, bufferSize int) {
 	if !s.isActive() {
-		dataQueue = make(chan logMessage, bufferSize)
-		configService = make(chan configMessage)
-		configServiceResponse = make(chan error)
-		stopService = make(chan bool)
-		stopServiceResponse = make(chan struct{})
+		s.dataQueue = make(chan logMessage, bufferSize)
+		s.configService = make(chan configMessage)
+		s.configServiceResponse = make(chan error)
+		s.stopService = make(chan bool)
+		s.stopServiceResponse = make(chan struct{})
 		serviceRunning := make(chan bool)
 
 		go s.run(serviceRunning)
@@ -134,8 +111,20 @@ func Startup(bufferSize int) {
 		} else {
 			s.setActive(true)
 		}
+
+		// initialize log file
+		var flag int
+		if appendlog {
+			flag = os.O_APPEND | os.O_CREATE | os.O_WRONLY
+		} else {
+			flag = os.O_TRUNC | os.O_CREATE | os.O_WRONLY
+		}
+		s.configService <- configMessage{initlog, map[int]any{logflag: flag, logfilename: logName}}
+		if err := <-s.configServiceResponse; err != nil {
+			panic(err)
+		}
 	} else {
-		panic(m002)
+		panic(m001)
 	}
 }
 
@@ -147,11 +136,11 @@ func SwitchLog(newLogName string) {
 	if s.isActive() {
 		var err error
 		flag := os.O_EXCL | os.O_CREATE | os.O_WRONLY
-		configService <- configMessage{switchlog, map[int]any{logflag: flag, logfilename: newLogName}}
-		if err = <-configServiceResponse; err != nil {
+		s.configService <- configMessage{switchlog, map[int]any{logflag: flag, logfilename: newLogName}}
+		if err = <-s.configServiceResponse; err != nil {
 			panic(err)
 		}
 	} else {
-		panic(m004)
+		panic(m002)
 	}
 }
