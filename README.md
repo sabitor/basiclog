@@ -8,7 +8,7 @@ The simple logger writes log records to either standard out, a log file, or stan
 In order to use or work with the simplelog package, the following set of functions were exposed to be used as the simplelog API: 
 
 ```
-// Log writes a log message to a specified destination.
+// Log writes a log message to a specified destination, e.g. to STDOUT or to a file.
 func Log(destination int, logValues ...any)
 
 // SetPrefix sets the prefix for logging lines.
