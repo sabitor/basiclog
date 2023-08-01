@@ -75,7 +75,7 @@ func SetPrefix(destination int, prefix string) {
 	}
 }
 
-// Shutdown stops the log service inclusing post-processing and cleanup.
+// Shutdown stops the log service including post-processing and cleanup.
 // Before the log service is stopped, all pending log messages are flushed and resources are released.
 // Archiving a log file means that it will be renamed and no new messages will be appended on a new run.
 // The archived log file is of the following format: <log file name>_yyyymmddHHMMSS.
