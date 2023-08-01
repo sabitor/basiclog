@@ -47,7 +47,6 @@ func (f *fileLogger) instance() *logger {
 		f.writer = bufio.NewWriter(s.desc)
 		// f.writer = bufio.NewWriterSize(f.desc, 10000000)
 		f.self = newLogger(f.writer)
-		// f.self = newLogger(f.desc)
 		f.desc.WriteString("\n")
 	}
 	return f.self
