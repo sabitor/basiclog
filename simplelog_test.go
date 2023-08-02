@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func Test_service_startup(t *testing.T) {
+func Teststartup(t *testing.T) {
 	logFile := "test1.log"
 	Startup(logFile, false, 1)
 
@@ -17,19 +17,13 @@ func Test_service_startup(t *testing.T) {
 	} else {
 		s.stop(false)
 		s.setActive(false)
-		// for {
-		// 	// wait until the service is up
-		// 	if !c.checkState(running) {
-		// 		break
-		// 	}
-		// }
 	}
 	if _, err := os.Stat(logFile); err == nil {
 		os.Remove(logFile)
 	}
 }
 
-func Test_service_shutdown(t *testing.T) {
+func TestShutdown(t *testing.T) {
 	logFile := "test1.log"
 	Startup(logFile, false, 1)
 	Shutdown(false)
@@ -44,32 +38,7 @@ func Test_service_shutdown(t *testing.T) {
 	}
 }
 
-// func Test_service_initLogFile(t *testing.T) {
-// 	logFile := "test1.log"
-// 	filePerms := "-rw-r--r--"
-// 	fileSize := 0
-
-// 	if _, err := os.Stat(logFile); err == nil {
-// 		os.Remove(logFile)
-// 	}
-
-// 	Startup("tmp.log", false, 1)
-// 	// InitLog(logFile, false)
-// 	Shutdown(false)
-
-// 	data, err := os.Stat(logFile)
-// 	if err != nil {
-// 		t.Error("Expected to find file", logFile, "- but got:", err)
-// 	} else if data.Mode().String() != filePerms {
-// 		t.Error("Expected file permissions", filePerms, "but found:", data.Mode().String())
-// 	} else if data.Size() != 0 {
-// 		t.Error("Expected file size", fileSize, "but found:", data.Size())
-// 	} else {
-// 		os.Remove(logFile)
-// 	}
-// }
-
-func Test_service_changeLogFile(t *testing.T) {
+func TestChangeLogFile(t *testing.T) {
 	logFile1 := "test1.log"
 	logFile2 := "test2.log"
 	filePerms := "-rw-r--r--"
@@ -83,7 +52,6 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 
 	Startup(logFile1, false, 1)
-	// InitLog(logFile1, false)
 	SwitchLog(logFile2)
 	Shutdown(false)
 
@@ -110,7 +78,7 @@ func Test_service_changeLogFile(t *testing.T) {
 	}
 }
 
-func Test_service_writeToStdout(t *testing.T) {
+func TestLogToStdout(t *testing.T) {
 	s = new(simpleLogService) // reset service instance
 	stdOut := os.Stdout
 	logFile := "test1.log"
@@ -137,7 +105,7 @@ func Test_service_writeToStdout(t *testing.T) {
 	}
 }
 
-func Test_service_writeToFile(t *testing.T) {
+func TestLogToFile(t *testing.T) {
 	s = new(simpleLogService) // reset service instance
 	logFile := "test1.log"
 
@@ -146,7 +114,6 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 
 	Startup(logFile, false, 1)
-	// InitLog(logFile, false)
 	Log(FILE, "The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -161,7 +128,7 @@ func Test_service_writeToFile(t *testing.T) {
 	}
 }
 
-func Test_service_writeToMulti(t *testing.T) {
+func TestLogToMulti(t *testing.T) {
 	s = new(simpleLogService) // reset service instance
 	stdOut := os.Stdout
 	logFile := "test1.log"
@@ -174,7 +141,6 @@ func Test_service_writeToMulti(t *testing.T) {
 	}
 
 	Startup(logFile, false, 1)
-	// InitLog(logFile, false)
 	Log(MULTI, "The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -197,6 +163,26 @@ func Test_service_writeToMulti(t *testing.T) {
 	} else if !strings.Contains(string(data), "The answer to all questions is "+fmt.Sprint(42)) {
 		t.Error("Expected log record:", "The answer to all questions is "+fmt.Sprint(42), "- but got:", string(data))
 	} else {
+		os.Remove(logFile)
+	}
+}
+
+func BenchmarkLog(b *testing.B) {
+	s = new(simpleLogService) // reset service instance
+	logFile := "test1.log"
+
+	if _, err := os.Stat(logFile); err == nil {
+		os.Remove(logFile)
+	}
+
+	Startup(logFile, false, 1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Log(FILE, "The answer to all questions is", 42)
+	}
+	Shutdown(false)
+
+	if _, err := os.Stat(logFile); err == nil {
 		os.Remove(logFile)
 	}
 }
