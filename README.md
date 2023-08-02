@@ -19,7 +19,7 @@ func SetPrefix(destination int, prefix string)
 func Shutdown(archivelog bool)
 
 // Startup starts the log service.
-func Startup(bufferSize int)
+func Startup(logName string, appendLog bool, bufferSize int)
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
 func SwitchLog(newLogName string)
@@ -37,7 +37,7 @@ Using the log framework is pretty easy. After the log service has been started o
 	 - Hour: HH
 	 - Minute: MI
 	 - Second: SS
-	 - Millisecond: f[5f]
+	 - Millisecond: F[5F]
 
 	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.ffffff\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
 
