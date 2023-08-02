@@ -63,13 +63,12 @@ func SetPrefix(destination int, prefix string) {
 		switch destination {
 		case STDOUT:
 			s.configService <- configMessage{setprefix, map[int]any{stdoutlogprefix: preparedPrefix}}
-			<-s.configServiceResponse
 		case FILE:
 			s.configService <- configMessage{setprefix, map[int]any{filelogprefix: preparedPrefix}}
-			<-s.configServiceResponse
 		default:
 			panic(m003)
 		}
+		<-s.configServiceResponse
 	} else {
 		panic(m002)
 	}
