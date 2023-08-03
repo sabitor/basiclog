@@ -26,7 +26,13 @@ func SwitchLog(newLogName string)
 ```
 
 ## How to use simplelog
-Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
+Using the simplelog framework is pretty easy. After the log service has been started by calling the *Startup* function, any number of *Log* function calls can be triggered until the log service has been explicitly stopped by calling the *Shutdown* function, for example:
+
+	Startup()
+ 	Log()
+	...
+ 	Log()
+  	Shutdown()
 
 **Hint:** 
 1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
