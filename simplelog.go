@@ -21,15 +21,15 @@ const (
 // Log writes a log message to a specified destination.
 // The destination parameter specifies the log destination, where the data will be written to.
 // The logValues parameter consists of one or multiple values that are logged.
-func Log(destination int, logValues ...any) {
+func Log(destination int, values ...any) {
 	if s.isActive() {
 		switch destination {
 		case STDOUT:
-			s.dataQueue <- logMessage{STDOUT, logValues}
+			s.dataQueue <- logMessage{STDOUT, values}
 		case FILE:
-			s.dataQueue <- logMessage{FILE, logValues}
+			s.dataQueue <- logMessage{FILE, values}
 		case MULTI:
-			s.dataQueue <- logMessage{MULTI, logValues}
+			s.dataQueue <- logMessage{MULTI, values}
 		default:
 			panic(m003)
 		}
