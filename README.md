@@ -65,7 +65,7 @@ func main() {
 
     simplelog.SetPrefix(simplelog.STDOUT, "STDOUT$")
     simplelog.Log(simplelog.STDOUT, ">>> Start application")
-    simplelog.SetPrefix(simplelog.FILE, "<DT>dd/mm/yyyy HH:MI:SS.FFFFFF<DT>")
+    simplelog.SetPrefix(simplelog.FILE, "<DT>yyyy/mm/dd HH:MI:SS.FFFFFF<DT>")
     simplelog.Log(simplelog.STDOUT, "Log file is", log1)
     simplelog.Log(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
     simplelog.Log(simplelog.MULTI, "[MAIN]", "Write", 1, "to MULTI.")
