@@ -10,7 +10,7 @@ In order to use or work with the simplelog package, the following set of functio
 ```
 // Log writes a log message to a specified destination.
 // Possible destinations are STDOUT, FILE or MULTI (a combination of STDOUT and FILE).
-func Log(destination int, logValues ...any)
+func Log(destination int, values ...any)
 
 // SetPrefix sets the prefix for logging lines.
 func SetPrefix(destination int, prefix string)
