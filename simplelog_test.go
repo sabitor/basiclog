@@ -92,7 +92,7 @@ func TestSetPrefix(t *testing.T) {
 		t.Error("Expected to find:", expectedPrefix, "- but found:", s.stdoutLogger.prefix)
 	}
 	if !strings.Contains(s.fileLogger.prefix, expectedPrefix) {
-		t.Error("Expected to find:", expectedPrefix, " - but found:", s.fileLogger.prefix)
+		t.Error("Expected to find:", expectedPrefix, "- but found:", s.fileLogger.prefix)
 	}
 	if _, err := os.Stat(logFile); err == nil {
 		os.Remove(logFile)
