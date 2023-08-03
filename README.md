@@ -37,7 +37,7 @@ Using the log framework is pretty easy. After the log service has been started o
 	 - Hour: HH
 	 - Minute: MI
 	 - Second: SS
-	 - Millisecond: F[5F]
+	 - Millisecond: FFFFFF
 
 	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.ffffff\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
 
