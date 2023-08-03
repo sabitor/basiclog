@@ -35,7 +35,7 @@ Using the simplelog framework is pretty easy. After the log service has been sta
   	Shutdown()
 
 **Hint:** 
-1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
+1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
 
 	 - Year: yyyy
 	 - Month: mm
