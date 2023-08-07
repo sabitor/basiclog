@@ -8,10 +8,6 @@ The simple logger writes log records to either standard out, a log file, or stan
 In order to use or work with the simplelog package, the following set of functions were exposed to be used as the simplelog API: 
 
 ```
-// Log writes a log message to a specified destination.
-// Possible destinations are STDOUT, FILE or MULTI (a combination of STDOUT and FILE).
-func Log(destination int, values ...any)
-
 // SetPrefix sets the prefix for logging lines.
 func SetPrefix(destination int, prefix string)
 
@@ -23,6 +19,10 @@ func Startup(logName string, appendLog bool, bufferSize int)
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
 func SwitchLog(newLogName string)
+
+// Write writes a log message to a specified destination.
+// Possible destinations are STDOUT, FILE or MULTI (a combination of STDOUT and FILE).
+func Write(destination int, values ...any)
 ```
 
 ## How to use simplelog
@@ -64,15 +64,15 @@ func main() {
     defer simplelog.Shutdown(false)
 
     simplelog.SetPrefix(simplelog.STDOUT, "STDOUT$")
-    simplelog.Log(simplelog.STDOUT, ">>> Start application")
+    simplelog.Write(simplelog.STDOUT, ">>> Start application")
     simplelog.SetPrefix(simplelog.FILE, "<DT>dd/mm/yyyy HH:MI:SS.FFFFFF<DT>")
-    simplelog.Log(simplelog.STDOUT, "Log file is", log1)
-    simplelog.Log(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
-    simplelog.Log(simplelog.MULTI, "[MAIN]", "Write", 1, "to MULTI.")
+    simplelog.Write(simplelog.STDOUT, "Log file is", log1)
+    simplelog.Write(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
+    simplelog.Write(simplelog.MULTI, "[MAIN]", "Write", 1, "to MULTI.")
     
     log2 := "log2.txt"
     simplelog.SwitchLog(log2)
-    simplelog.Log(simplelog.STDOUT, "New log file is", log2)
+    simplelog.Write(simplelog.STDOUT, "New log file is", log2)
 
     var wg sync.WaitGroup
     for i := 1; i <= 4; i++ {
@@ -80,13 +80,13 @@ func main() {
         go func(count int) {
             defer wg.Done()
 	    context := "[GOROUTINE " + strconv.Itoa(count) + "]"
-	    simplelog.Log(simplelog.FILE, context, "Write", count+1, "to FILE.")
+	    simplelog.Write(simplelog.FILE, context, "Write", count+1, "to FILE.")
         }(i)
     }
     wg.Wait()
 
-    simplelog.Log(simplelog.MULTI, "[MAIN]", "Write", 2, "to MULTI.")
-    simplelog.Log(simplelog.STDOUT, "<<< Stop application")
+    simplelog.Write(simplelog.MULTI, "[MAIN]", "Write", 2, "to MULTI.")
+    simplelog.Write(simplelog.STDOUT, "<<< Stop application")
 }
 ```
 

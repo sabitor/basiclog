@@ -108,7 +108,7 @@ func TestLogToStdout(t *testing.T) {
 	os.Stdout = w
 
 	Startup(logFile, false, 1)
-	Log(STDOUT, "The answer to all questions is", 42)
+	Write(STDOUT, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()
@@ -135,7 +135,7 @@ func TestLogToFile(t *testing.T) {
 	}
 
 	Startup(logFile, false, 1)
-	Log(FILE, "The answer to all questions is", 42)
+	Write(FILE, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	data, err := os.ReadFile(logFile)
@@ -162,7 +162,7 @@ func TestLogToMulti(t *testing.T) {
 	}
 
 	Startup(logFile, false, 1)
-	Log(MULTI, "The answer to all questions is", 42)
+	Write(MULTI, "The answer to all questions is", 42)
 	Shutdown(false)
 
 	_ = w.Close()
@@ -199,7 +199,7 @@ func BenchmarkLog(b *testing.B) {
 	Startup(logFile, false, 1)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Log(FILE, "The answer to all questions is", 42)
+		Write(FILE, "The answer to all questions is", 42)
 	}
 	Shutdown(false)
 

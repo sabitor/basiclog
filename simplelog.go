@@ -18,26 +18,6 @@ const (
 	m003 = "unknown log destination specified"
 )
 
-// Log writes a log message to a specified destination.
-// The destination parameter specifies the log destination, where the data will be written to.
-// The logValues parameter consists of one or multiple values that are logged.
-func Log(destination int, values ...any) {
-	if s.isActive() {
-		switch destination {
-		case STDOUT:
-			s.dataQueue <- logMessage{STDOUT, values}
-		case FILE:
-			s.dataQueue <- logMessage{FILE, values}
-		case MULTI:
-			s.dataQueue <- logMessage{MULTI, values}
-		default:
-			panic(m003)
-		}
-	} else {
-		panic(m002)
-	}
-}
-
 // SetPrefix sets the prefix for logging lines.
 // If the prefix should also contain actual date and time data, the following placeholders
 // can be applied for given data:
@@ -138,6 +118,26 @@ func SwitchLog(newLogName string) {
 		s.configService <- configMessage{switchlog, map[int]any{logflag: flag, logfilename: newLogName}}
 		if err = <-s.configServiceResponse; err != nil {
 			panic(err)
+		}
+	} else {
+		panic(m002)
+	}
+}
+
+// Write writes a log message to a specified destination.
+// The destination parameter specifies the log destination, where the data will be written to.
+// The logValues parameter consists of one or multiple values that are logged.
+func Write(destination int, values ...any) {
+	if s.isActive() {
+		switch destination {
+		case STDOUT:
+			s.dataQueue <- logMessage{STDOUT, values}
+		case FILE:
+			s.dataQueue <- logMessage{FILE, values}
+		case MULTI:
+			s.dataQueue <- logMessage{MULTI, values}
+		default:
+			panic(m003)
 		}
 	} else {
 		panic(m002)
