@@ -26,10 +26,16 @@ func Write(destination int, values ...any)
 ```
 
 ## How to use simplelog
-Using the log framework is pretty easy. After the log service has been started once, any number of log message write calls can be triggered until the log service is  explicitly stopped.
+Using the simplelog framework is pretty easy. After the log service has been started by calling the *Startup* function, any number of *Log* function calls can be triggered until the log service has been explicitly stopped by calling the *Shutdown* function, for example:
+
+	Startup()
+ 	Log()
+	...
+ 	Log()
+  	Shutdown()
 
 **Hint:** 
-1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
+1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
 
 	 - Year: yyyy
 	 - Month: mm
@@ -39,7 +45,7 @@ Using the log framework is pretty easy. After the log service has been started o
 	 - Second: SS
 	 - Millisecond: FFFFFF
 
-	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.ffffff\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
+	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.FFFFFF\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
 
 	Note that not all placeholders have to be used, they can be used in any order and even non-datetime characters or strings can be integrated.
 
