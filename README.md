@@ -35,20 +35,6 @@ Using the simplelog framework is pretty easy. After the log service has been sta
   	Shutdown(...)
 
 **Hint:** 
-If the prefix should also contain actual time data, the reference time placeholders can be used accordingly:
-//
-//	year: 2006
-//	month: 01
-//	day: 02
-//	hour: 15
-//	minute: 04
-//	second: 05
-//	millisecond: 000000
-//
-// In addition, to distinguish and parse date and time information, the reference time string has to be
-// delimited by # tags and can be used for example as follows: #2006-01-02 15:04:05.000000#.
-// Note that not all placeholders have to be used and they can be used in any order.
-
 1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the Golang *reference time placeholders* can be applied for given data:
 
 	 - Year: 2006
@@ -59,7 +45,7 @@ If the prefix should also contain actual time data, the reference time placehold
 	 - Second: 05
 	 - Millisecond: 000000
 
-	In addition, to distinguish and parse date and time information, the reference time string has to be delimited by the prefix and suffix tag #, for example: #2006-01-02 15:04:05.000000#. All placeholders are replaced at runtime by the logging service accordingly.
+	In addition, to distinguish and parse date and time information, the reference time string has to be delimited by the prefix and suffix tag #, for example: #2006-01-02 15:04:05.000000#. Then, all placeholders are replaced at runtime by the logging service accordingly.
 
 	Note that not all placeholders have to be used and they can be used in any order.
 
