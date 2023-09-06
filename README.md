@@ -8,8 +8,8 @@ The simple logger writes log records to either standard out, a log file, or stan
 In order to use or work with the simplelog package, the following set of functions were exposed to be used as the simplelog API: 
 
 ```
-// SetPrefix sets the prefix for logging lines.
-func SetPrefix(destination int, prefix string)
+// SetPrefix sets the prefix for log records.
+func SetPrefix(destination int, prefix ...string)
 
 // Shutdown stops the log service including post-processing and cleanup.
 func Shutdown(archivelog bool)
