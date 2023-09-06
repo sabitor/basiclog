@@ -26,13 +26,13 @@ func Write(destination int, values ...any)
 ```
 
 ## How to use simplelog
-Using the simplelog framework is pretty easy. After the log service has been started by calling the *Startup* function, any number of *Log* function calls can be triggered until the log service has been explicitly stopped by calling the *Shutdown* function, for example:
+Using the simplelog framework is pretty easy. After the log service has been started by calling the *Startup* function, any number of *Write* function calls can be triggered until the log service has been explicitly stopped by calling the *Shutdown* function, for example:
 
-	Startup()
- 	Log()
+	Startup(...)
+ 	Write(...)
 	...
- 	Log()
-  	Shutdown()
+ 	Write(...)
+  	Shutdown(...)
 
 **Hint:** 
 1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
@@ -71,7 +71,7 @@ func main() {
 
     simplelog.SetPrefix(simplelog.STDOUT, "STDOUT$")
     simplelog.Write(simplelog.STDOUT, ">>> Start application")
-    simplelog.SetPrefix(simplelog.FILE, "<DT>dd/mm/yyyy HH:MI:SS.FFFFFF<DT>")
+    simplelog.SetPrefix(simplelog.FILE, "#02/01/2023 15:04:05.000000#", "-")
     simplelog.Write(simplelog.STDOUT, "Log file is", log1)
     simplelog.Write(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
     simplelog.Write(simplelog.MULTI, "[MAIN]", "Write", 1, "to MULTI.")
@@ -109,16 +109,16 @@ STDOUT$ <<< Stop application
 ```
 **Log file log1.txt**
 ```
-2023/04/14 08:49:02.555266 [MAIN] Write 1 to FILE.
-2023/04/14 08:49:02.555332 [MAIN] Write 1 to MULTI.
+2023/04/14 08:49:02.555266 - [MAIN] Write 1 to FILE.
+2023/04/14 08:49:02.555332 - [MAIN] Write 1 to MULTI.
 ```
 **Log file log2.txt**
 ```
-2023/04/14 08:49:02.555448 [GOROUTINE 4] Write 5 to FILE.
-2023/04/14 08:49:02.555456 [GOROUTINE 1] Write 2 to FILE.
-2023/04/14 08:49:02.555460 [GOROUTINE 3] Write 4 to FILE.
-2023/04/14 08:49:02.555562 [GOROUTINE 2] Write 3 to FILE.
-2023/04/14 08:49:02.555604 [MAIN] Write 2 to MULTI.
+2023/04/14 08:49:02.555448 - [GOROUTINE 4] Write 5 to FILE.
+2023/04/14 08:49:02.555456 - [GOROUTINE 1] Write 2 to FILE.
+2023/04/14 08:49:02.555460 - [GOROUTINE 3] Write 4 to FILE.
+2023/04/14 08:49:02.555562 - [GOROUTINE 2] Write 3 to FILE.
+2023/04/14 08:49:02.555604 - [MAIN] Write 2 to MULTI.
 ```
 
 
