@@ -35,19 +35,33 @@ Using the simplelog framework is pretty easy. After the log service has been sta
   	Shutdown(...)
 
 **Hint:** 
-1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the following *placeholders* can be applied for given data:
+If the prefix should also contain actual time data, the reference time placeholders can be used accordingly:
+//
+//	year: 2006
+//	month: 01
+//	day: 02
+//	hour: 15
+//	minute: 04
+//	second: 05
+//	millisecond: 000000
+//
+// In addition, to distinguish and parse date and time information, the reference time string has to be
+// delimited by # tags and can be used for example as follows: #2006-01-02 15:04:05.000000#.
+// Note that not all placeholders have to be used and they can be used in any order.
 
-	 - Year: yyyy
-	 - Month: mm
-	 - Day: dd
-	 - Hour: HH
-	 - Minute: MI
-	 - Second: SS
-	 - Millisecond: FFFFFF
+1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the *reference time placeholders* can be applied for given data:
 
-	In addition, to distinguish and parse date and time information, placeholders have to be delimited by __\<DT\>...\<DT\>__ tags and can be used for example as follows: \<DT\>yyyy-mm-dd HH:MI:SS.FFFFFF\<DT\>. All placeholders are replaced at runtime by the logging service accordingly.
+	 - Year: 2006
+	 - Month: 01
+	 - Day: 02
+	 - Hour: 15
+	 - Minute: 04
+	 - Second: 05
+	 - Millisecond: 000000
 
-	Note that not all placeholders have to be used, they can be used in any order and even non-datetime characters or strings can be integrated.
+	In addition, to distinguish and parse date and time information, the reference time string has to be delimited by the prefix and suffix tag #, for example: #2006-01-02 15:04:05.000000#. All placeholders are replaced at runtime by the logging service accordingly.
+
+	Note that not all placeholders have to be used and they can be used in any order.
 
 2) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created (a file with the new name must not already exist). The log service does not have to be stopped for this purpose.
 3) Log files can also be archived automatically when the log service is shut down. In such a case, the closed log file is renamed as follows: \<log file name\>_yyyymmddHHMMSS, whereas *yyyymmddHHMMSS* denotes the timestamp when the rename of the log occurred.
