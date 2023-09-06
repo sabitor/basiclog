@@ -1,7 +1,7 @@
 // Package simplelog is a logging package with the focus on simplicity,
 // ease of use and performance.
 // Once started, the simple logger runs as a service and listens for logging
-// requests. Logging requests can be send to different logging destinations,
+// requests. Logging requests can be send to different log destinations,
 // such as standard out, a log file, or both.
 // The simple logger can be used simultaneously from multiple goroutines.
 package simplelog
@@ -18,33 +18,30 @@ const (
 	m003 = "unknown log destination specified"
 )
 
-// SetPrefix sets the prefix for logging lines.
-// If the prefix should also contain actual date and time data, the following placeholders
-// can be applied for given data:
+// SetPrefix sets the prefix for log records.
+// If the prefix should also contain actual time data, the reference time placeholders can be used accordingly:
 //
-//	year: yyyy
-//	month: mm
-//	day: dd
-//	hour: HH
-//	minute: MI
-//	second: SS
-//	millisecond: FFFFFF
+//	year: 2006
+//	month: 01
+//	day: 02
+//	hour: 15
+//	minute: 04
+//	second: 05
+//	millisecond: 000000
 //
-// In addition, to distinguish and parse date and time information, placeholders have to be delimited by
-// <DT>...<DT> tags and can be used for example as follows: <DT>yyyy-mm-dd HH:MI:SS.FFFFFF<DT>.
-// Note that not all placeholders have to be used, they can be used in any order and even
-// non-datetime characters or strings can be integrated.
+// In addition, to distinguish and parse date and time information, the reference time string has to be
+// delimited by # tags and can be used for example as follows: #2006-01-02 15:04:05.000000#.
+// Note that not all placeholders have to be used and they can be used in any order
 //
 // The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
-// The prefix specifies the prefix for each logging line for a given log destination.
-func SetPrefix(destination int, prefix string) {
+// The prefix specifies the prefix for each log record for a given log destination.
+func SetPrefix(destination int, prefix ...string) {
 	if s.isActive() {
-		preparedPrefix := preprocessPrefix(prefix)
 		switch destination {
 		case STDOUT:
-			s.configService <- configMessage{setprefix, map[int]any{stdoutlogprefix: preparedPrefix}}
+			s.configService <- configMessage{setprefix, map[int]any{stdoutlogprefix: prefix}}
 		case FILE:
-			s.configService <- configMessage{setprefix, map[int]any{filelogprefix: preparedPrefix}}
+			s.configService <- configMessage{setprefix, map[int]any{filelogprefix: prefix}}
 		default:
 			panic(m003)
 		}

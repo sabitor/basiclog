@@ -7,7 +7,7 @@ import (
 
 // general
 const (
-	dateTimeTag = "<DT>"
+	dateTimeTag = "#"
 )
 
 // log destinations
@@ -29,8 +29,8 @@ const (
 	logbuffer       = iota // defines the buffer size of the logMessage channel
 	logfilename            // defines the log file name to be used
 	logflag                // a flag or a combination of flags which specifies how to open the log file
-	filelogprefix          // defines the prefix that is placed in front of each logging line in the log file
-	stdoutlogprefix        // defines the prefix that is placed in front of each logging line in stdout
+	filelogprefix          // defines the prefix that is placed in front of each log line in the log file
+	stdoutlogprefix        // defines the prefix that is placed in front of each log line in stdout
 )
 
 // a logMessage represents the log message which will be sent to the log service.
@@ -48,7 +48,7 @@ type configMessage struct {
 // stdoutLogger is a data collection to support logging to stdout.
 type stdoutLogger struct {
 	self   *logger
-	prefix string
+	prefix []string // prefix for each stdout log record
 }
 
 // fileLogger is a data collection to support logging to files.
@@ -56,7 +56,7 @@ type fileLogger struct {
 	writer *bufio.Writer
 	desc   *os.File
 	self   *logger
-	prefix string
+	prefix []string // prefix for each file log record
 }
 
 // logWriter interface includes definitions of the following method signatures:

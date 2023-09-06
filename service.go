@@ -162,9 +162,9 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 				s.configServiceResponse <- err
 			case setprefix:
 				if logPrefix, ok := cfgData.data[stdoutlogprefix]; ok {
-					s.stdoutLogger.prefix = convertToString(logPrefix)
+					s.stdoutLogger.prefix = logPrefix.([]string)
 				} else if logPrefix, ok = cfgData.data[filelogprefix]; ok {
-					s.fileLogger.prefix = convertToString(logPrefix)
+					s.fileLogger.prefix = logPrefix.([]string)
 				} else {
 					panic(m003)
 				}
