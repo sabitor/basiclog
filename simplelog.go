@@ -19,7 +19,7 @@ const (
 )
 
 // SetPrefix sets the prefix for log records.
-// If the prefix should also contain actual time data, the reference time placeholders can be used accordingly:
+// If the prefix should also contain actual time data, the Golang reference time placeholders can be used accordingly:
 //
 //	year: 2006
 //	month: 01
@@ -31,7 +31,7 @@ const (
 //
 // In addition, to distinguish and parse date and time information, the reference time string has to be
 // delimited by # tags and can be used for example as follows: #2006-01-02 15:04:05.000000#.
-// Note that not all placeholders have to be used and they can be used in any order
+// Note that not all placeholders have to be used and they can be used in any order.
 //
 // The destination specifies the name of the log destination where the prefix should be used, e.g. STDOUT or FILE.
 // The prefix specifies the prefix for each log record for a given log destination.
