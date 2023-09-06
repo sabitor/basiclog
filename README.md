@@ -49,7 +49,7 @@ If the prefix should also contain actual time data, the reference time placehold
 // delimited by # tags and can be used for example as follows: #2006-01-02 15:04:05.000000#.
 // Note that not all placeholders have to be used and they can be used in any order.
 
-1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the *reference time placeholders* can be applied for given data:
+1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the Golang *reference time placeholders* can be applied for given data:
 
 	 - Year: 2006
 	 - Month: 01
