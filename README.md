@@ -37,20 +37,22 @@ Using the simplelog framework is pretty easy. After the log service has been sta
 **Hint:** 
 1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the Golang *reference time placeholders* can be applied for given data:
 
-	 - Year: 2006
-	 - Month: 01
-	 - Day: 02
-	 - Hour: 15
-	 - Minute: 04
-	 - Second: 05
-	 - Millisecond: 000000
+	| Time Item | Placeholder |
+	| -------- | ------- |
+	| Year | 2006 |
+	| Month | 01 |
+	| Day | 02 |
+	| Hour | 15 |
+	| Minute | 04 |
+	| Second | 05 |
+	| Millisecond | 000000 |
 
 	In addition, to distinguish and parse date and time information, the reference time string has to be delimited by the prefix and suffix tag #, for example: #2006-01-02 15:04:05.000000#. Then, all placeholders are replaced at runtime by the logging service accordingly.
 
 	Note that not all placeholders have to be used and they can be used in any order.
 
-2) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created (a file with the new name must not already exist). The log service does not have to be stopped for this purpose.
-3) Log files can also be archived automatically when the log service is shut down. In such a case, the closed log file is renamed as follows: \<log file name\>_yyyymmddHHMMSS, whereas *yyyymmddHHMMSS* denotes the timestamp when the rename of the log occurred.
+3) The log file used by the log service can be changed by calling the *SwitchLog* function. Thereby, the current log is closed (not deleted) and a new log file with the specified name is created (a file with the new name must not already exist). The log service does not have to be stopped for this purpose.
+4) Log files can also be archived automatically when the log service is shut down. In such a case, the closed log file is renamed as follows: \<log file name\>_yyyymmddHHMMSS, whereas *yyyymmddHHMMSS* denotes the timestamp when the rename of the log occurred.
 
 **Example:** 
 ```go
