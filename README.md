@@ -1,5 +1,5 @@
 # Simplelog
-Simplelog is a log framework mainly with a focus on simplicity, ease of use and performance.
+Simplelog is a log package mainly with a focus on simplicity, ease of use and performance.
 
 Once started, the simple logger runs as a service and listens for logging requests.
 The simple logger writes log records to either standard out, a log file, or standard out and a log file simultaneously (multi log).
