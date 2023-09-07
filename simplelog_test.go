@@ -81,18 +81,27 @@ func TestChangeLogFile(t *testing.T) {
 func TestSetPrefix(t *testing.T) {
 	s = new(simpleLogService) // reset service instance
 	logFile := "test1.log"
-	expectedPrefix := "2006-01-02 15:04:05.000000 [Test]:"
+	expectedPrefix := "#2006-01-02 15:04:05.000000#[Test]"
 
 	Startup(logFile, false, 1)
-	SetPrefix(STDOUT, "<DT>yyyy-mm-dd HH:MI:SS.FFFFFF<DT> [Test]:")
-	SetPrefix(FILE, "<DT>yyyy-mm-dd HH:MI:SS.FFFFFF<DT> [Test]:")
+	SetPrefix(STDOUT, "#2006-01-02 15:04:05.000000#", "[Test]")
+	SetPrefix(FILE, "#2006-01-02 15:04:05.000000#", "[Test]")
 	Shutdown(false)
 
-	if !strings.Contains(s.stdoutLogger.prefix, expectedPrefix) {
-		t.Error("Expected to find:", expectedPrefix, "- but found:", s.stdoutLogger.prefix)
+	var prefix string
+	for _, v := range s.stdoutLogger.prefix {
+		prefix += v
 	}
-	if !strings.Contains(s.fileLogger.prefix, expectedPrefix) {
-		t.Error("Expected to find:", expectedPrefix, "- but found:", s.fileLogger.prefix)
+	if !strings.Contains(prefix, expectedPrefix) {
+		t.Error("Expected to find:", expectedPrefix, "- but found:", prefix)
+	}
+
+	prefix = ""
+	for _, v := range s.fileLogger.prefix {
+		prefix += v
+	}
+	if !strings.Contains(prefix, expectedPrefix) {
+		t.Error("Expected to find:", expectedPrefix, "- but found:", prefix)
 	}
 	if _, err := os.Stat(logFile); err == nil {
 		os.Remove(logFile)
