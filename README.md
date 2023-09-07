@@ -1,4 +1,4 @@
-# Log framework - simplelog
+# Simplelog
 simplelog is a log framework mainly with a focus on simplicity, ease of use and performance.
 
 Once started, the simple logger runs as a service and listens for logging requests.
