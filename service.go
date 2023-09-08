@@ -150,14 +150,14 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 		case cfgData = <-s.configService:
 			switch cfgData.task {
 			case initlog:
-				flag := convertToInt(cfgData.data[logflag])
-				logName := convertToString(cfgData.data[logfilename])
+				flag := cfgData.data[logflag].(int)
+				logName := cfgData.data[logfilename].(string)
 				err := s.setupLogFile(flag, logName)
 				s.configServiceResponse <- err
 			case switchlog:
 				flush()
-				flag := convertToInt(cfgData.data[logflag])
-				newLogName := convertToString(cfgData.data[logfilename])
+				flag := cfgData.data[logflag].(int)
+				newLogName := cfgData.data[logfilename].(string)
 				err := s.changeLogFile(flag, newLogName)
 				s.configServiceResponse <- err
 			case setprefix:
