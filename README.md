@@ -26,13 +26,7 @@ func Write(destination int, values ...any)
 ```
 
 ## How to use simplelog
-Using the simplelog framework is pretty easy. After the log service has been started by calling the *Startup* function, any number of *Write* function calls can be triggered until the log service has been explicitly stopped by calling the *Shutdown* function, for example:
-
-	Startup(...)
- 	Write(...)
-	...
- 	Write(...)
-  	Shutdown(...)
+Using the simplelog framework is pretty easy. Firstly, the log service has to be started and initialized by calling the *Startup* function. Afterwards, the logging can be started by triggering any number of *Write* function calls. Finally, the log service has to be stopped by calling the *Shutdown* function. This is important to ensure, the log buffer has been flushed completely and no log message is missing.
 
 **Hint:** 
 1) The appearance of a log line can be adjusted by specifying prefixes. These prefixes can be defined independently for the standard out logger and the file logger by calling the *SetPrefix* function. If the prefix should also contain actual date and time data, the Golang *reference time placeholders* can be applied for given data:
