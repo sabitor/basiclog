@@ -12,10 +12,11 @@ import (
 
 // message catalog
 const (
-	m000 = "log service is not running"
-	m001 = "log service was already started"
-	m002 = "log service has not been started"
-	m003 = "unknown log destination specified"
+	sg000 = "log service is not running"
+	sg001 = "log service was already started"
+	sg002 = "log service has not been started"
+	sg003 = "unknown log destination specified"
+	sg004 = "log file not setup"
 )
 
 // SetPrefix sets the prefix for log records.
@@ -43,11 +44,11 @@ func SetPrefix(destination int, prefix ...string) {
 		case FILE:
 			s.configService <- configMessage{setprefix, map[int]any{filelogprefix: prefix}}
 		default:
-			panic(m003)
+			panic(sg003)
 		}
 		<-s.configServiceResponse
 	} else {
-		panic(m002)
+		panic(sg002)
 	}
 }
 
@@ -61,18 +62,14 @@ func Shutdown(archivelog bool) {
 		s.stop(archivelog)
 		s.setActive(false)
 	} else {
-		panic(m000)
+		panic(sg000)
 	}
 }
 
 // Startup starts the log service.
 // The log service runs in its own goroutine.
-// The logName parameter specifies the name of the log file.
-// With appendLog it is possible to specify, if a new run of the application first truncates the
-// old log before new log entries are written (false) or if new messages are appended to the already
-// existing log (true).
 // The bufferSize specifies the number of log messages which can be buffered before the log service blocks.
-func Startup(logName string, appendlog bool, bufferSize int) {
+func Startup(bufferSize int) {
 	if !s.isActive() {
 		s.dataQueue = make(chan logMessage, bufferSize)
 		s.configService = make(chan configMessage)
@@ -83,12 +80,22 @@ func Startup(logName string, appendlog bool, bufferSize int) {
 
 		go s.run(serviceRunning)
 		if !<-serviceRunning {
-			panic(m000)
+			panic(sg000)
 		} else {
 			s.setActive(true)
 		}
+	} else {
+		panic(sg001)
+	}
+}
 
-		// initialize log file
+// SetupLog opens and initially creates a log file.
+// The logName parameter specifies the name of the log file.
+// With appendLog it is possible to specify, if a new run of the application first truncates the
+// old log before new log entries are written (false) or if new messages are appended to the already
+// existing log (true).
+func SetupLog(logName string, appendlog bool) {
+	if s.isActive() {
 		var flag int
 		if appendlog {
 			flag = os.O_APPEND | os.O_CREATE | os.O_WRONLY
@@ -100,7 +107,7 @@ func Startup(logName string, appendlog bool, bufferSize int) {
 			panic(err)
 		}
 	} else {
-		panic(m001)
+		panic(sg002)
 	}
 }
 
@@ -117,7 +124,7 @@ func SwitchLog(newLogName string) {
 			panic(err)
 		}
 	} else {
-		panic(m002)
+		panic(sg002)
 	}
 }
 
@@ -134,9 +141,32 @@ func Write(destination int, values ...any) {
 		case MULTI:
 			s.dataQueue <- logMessage{MULTI, values}
 		default:
-			panic(m003)
+			panic(sg003)
 		}
 	} else {
-		panic(m002)
+		panic(sg002)
+	}
+}
+
+// ConditionalWrite writes a log message to a specified destination based on a condition.
+// The condition parameter enables (true) or disables (false) whether or not a message is written.
+// The destination parameter specifies the log destination, where the data will be written to.
+// The logValues parameter consists of one or multiple values that are logged.
+func ConditionalWrite(condition bool, destination int, values ...any) {
+	if s.isActive() {
+		if condition {
+			switch destination {
+			case STDOUT:
+				s.dataQueue <- logMessage{STDOUT, values}
+			case FILE:
+				s.dataQueue <- logMessage{FILE, values}
+			case MULTI:
+				s.dataQueue <- logMessage{MULTI, values}
+			default:
+				panic(sg003)
+			}
+		}
+	} else {
+		panic(sg002)
 	}
 }
