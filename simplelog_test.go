@@ -10,7 +10,7 @@ import (
 
 func TestStartup(t *testing.T) {
 	logFile := "test1.log"
-	Startup(logFile, false, 1)
+	Startup(1)
 
 	if a := s.isActive(); a != true {
 		t.Error("Expected state true but got", a)
@@ -25,7 +25,7 @@ func TestStartup(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	logFile := "test1.log"
-	Startup(logFile, false, 1)
+	Startup(1)
 	Shutdown(false)
 
 	if a := s.isActive(); a == true {
@@ -51,7 +51,8 @@ func TestChangeLogFile(t *testing.T) {
 		os.Remove(logFile2)
 	}
 
-	Startup(logFile1, false, 1)
+	Startup(1)
+	SetupLog(logFile1, false)
 	SwitchLog(logFile2)
 	Shutdown(false)
 
@@ -83,7 +84,7 @@ func TestSetPrefix(t *testing.T) {
 	logFile := "test1.log"
 	expectedPrefix := "#2006-01-02 15:04:05.000000#[Test]"
 
-	Startup(logFile, false, 1)
+	Startup(1)
 	SetPrefix(STDOUT, "#2006-01-02 15:04:05.000000#", "[Test]")
 	SetPrefix(FILE, "#2006-01-02 15:04:05.000000#", "[Test]")
 	Shutdown(false)
@@ -116,7 +117,7 @@ func TestLogToStdout(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	Startup(logFile, false, 1)
+	Startup(1)
 	Write(STDOUT, "The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -143,7 +144,8 @@ func TestLogToFile(t *testing.T) {
 		os.Remove(logFile)
 	}
 
-	Startup(logFile, false, 1)
+	Startup(1)
+	SetupLog(logFile, false)
 	Write(FILE, "The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -170,7 +172,8 @@ func TestLogToMulti(t *testing.T) {
 		os.Remove(logFile)
 	}
 
-	Startup(logFile, false, 1)
+	Startup(1)
+	SetupLog(logFile, false)
 	Write(MULTI, "The answer to all questions is", 42)
 	Shutdown(false)
 
@@ -205,7 +208,8 @@ func BenchmarkLog(b *testing.B) {
 		os.Remove(logFile)
 	}
 
-	Startup(logFile, false, 1)
+	Startup(1)
+	SetupLog(logFile, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Write(FILE, "The answer to all questions is", 42)
