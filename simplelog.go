@@ -148,7 +148,7 @@ func Write(destination int, values ...any) {
 	}
 }
 
-// ConditionalWrite writes a log message to a specified destination based on a condition.
+// ConditionalWrite writes or doesn't write a log message to a specified destination based on a condition.
 // The condition parameter enables (true) or disables (false) whether or not a message is written.
 // The destination parameter specifies the log destination, where the data will be written to.
 // The logValues parameter consists of one or multiple values that are logged.
