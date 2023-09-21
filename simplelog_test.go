@@ -160,6 +160,30 @@ func TestLogToFile(t *testing.T) {
 	}
 }
 
+func TestConditionalLogToFile(t *testing.T) {
+	s = new(simpleLogService) // reset service instance
+	logFile := "test1.log"
+
+	if _, err := os.Stat(logFile); err == nil {
+		os.Remove(logFile)
+	}
+
+	Startup(1)
+	SetupLog(logFile, false)
+	ConditionalWrite(false, FILE, "The answer to all questions is", 42)
+	Shutdown(false)
+
+	data, err := os.ReadFile(logFile)
+
+	if err != nil {
+		t.Error("Expected to find file", logFile, "- but got:", err)
+	} else if string(data) != "" {
+		t.Error("Expected an empty file - but it contains:", string(data))
+	} else {
+		os.Remove(logFile)
+	}
+}
+
 func TestLogToMulti(t *testing.T) {
 	s = new(simpleLogService) // reset service instance
 	stdOut := os.Stdout
