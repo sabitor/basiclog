@@ -44,7 +44,10 @@ func (sl *stdoutLogger) instance() *logger {
 // instance denotes the logWriter interface implementation by the fileLogger type.
 func (f *fileLogger) instance() *logger {
 	if f.self == nil {
-		f.writer = bufio.NewWriter(s.desc)
+		if f.desc == nil {
+			panic(sg004)
+		}
+		f.writer = bufio.NewWriter(f.desc)
 		// f.writer = bufio.NewWriterSize(f.desc, 10000000)
 		f.self = newLogger(f.writer)
 		f.desc.WriteString("\n")
@@ -166,7 +169,7 @@ func (s *simpleLogService) run(serviceRunning chan<- bool) {
 				} else if logPrefix, ok = cfgData.data[filelogprefix]; ok {
 					s.fileLogger.prefix = logPrefix.([]string)
 				} else {
-					panic(m003)
+					panic(sg003)
 				}
 				s.configServiceResponse <- nil
 			}
