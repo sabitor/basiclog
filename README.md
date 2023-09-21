@@ -15,7 +15,10 @@ func SetPrefix(destination int, prefix ...string)
 func Shutdown(archivelog bool)
 
 // Startup starts the log service.
-func Startup(logName string, appendLog bool, bufferSize int)
+func Startup(bufferSize int)
+
+// SetupLog opens and initially creates a log file.
+func SetupLog(logName string, appendlog bool)
 
 // SwitchLog closes the current log file and a new log file with the specified name is created and used.
 func SwitchLog(newLogName string)
@@ -23,8 +26,10 @@ func SwitchLog(newLogName string)
 // Write writes a log message to a specified destination.
 // Possible destinations are STDOUT, FILE or MULTI (a combination of STDOUT and FILE).
 func Write(destination int, values ...any)
-```
 
+// ConditionalWrite writes or doesn't write a log message to a specified destination based on a condition.
+func ConditionalWrite(condition bool, destination int, values ...any)
+```
 ## How to use simplelog
 Using the simplelog framework is pretty easy. Firstly, the log service has to be started and initialized by calling the *Startup* function. Afterwards, the logging can be started by triggering any number of *Write* function calls. Finally, the log service has to be stopped by calling the *Shutdown* function. This is important to ensure, the log buffer has been flushed completely and no log message is missing.
 
