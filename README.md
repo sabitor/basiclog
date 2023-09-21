@@ -67,11 +67,12 @@ import (
 func main() {
     log1 := "log1.txt"
     logBuffer := 2 // number of log messages which can be buffered before the log service blocks
-    simplelog.Startup(log1, false, logBuffer)
+    simplelog.Startup(logBuffer)
     defer simplelog.Shutdown(false)
 
     simplelog.SetPrefix(simplelog.STDOUT, "STDOUT$")
     simplelog.Write(simplelog.STDOUT, ">>> Start application")
+    simplelog.SetupLog(log1, false)
     simplelog.SetPrefix(simplelog.FILE, "#02/01/2023 15:04:05.000000#", "-")
     simplelog.Write(simplelog.STDOUT, "Log file is", log1)
     simplelog.Write(simplelog.FILE, "[MAIN]", "Write", 1, "to FILE.")
